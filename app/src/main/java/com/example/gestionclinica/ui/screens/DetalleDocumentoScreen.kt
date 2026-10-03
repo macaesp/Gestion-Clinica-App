@@ -1,4 +1,4 @@
-package com.example.gestionclinica.ui.detalle
+package com.example.gestionclinica.ui.screens
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
