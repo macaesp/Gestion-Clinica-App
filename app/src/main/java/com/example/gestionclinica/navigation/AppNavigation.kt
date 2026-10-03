@@ -1,5 +1,6 @@
 package com.example.gestionclinica.navigation
 
+
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -46,7 +47,7 @@ fun AppNavigation(
             )
         }
 
-        // DETALLE
+        // DETALLE DEL DOCUMENTO
         composable("detalle") {
 
             DetalleDocumentoScreen(
@@ -63,7 +64,12 @@ fun AppNavigation(
             ListaDocumentosScreen(
                 viewModel = viewModel,
 
-                onDocumentoClick = {
+                onDocumentoClick = { documento ->
+
+                    // Guardamos cuál documento seleccionó el usuario
+                    viewModel.seleccionarDocumento(documento)
+
+                    // Abrimos su detalle
                     navController.navigate("detalle")
                 },
 
