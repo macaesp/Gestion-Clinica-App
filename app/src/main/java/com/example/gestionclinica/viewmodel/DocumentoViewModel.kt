@@ -1,12 +1,16 @@
 package com.example.gestionclinica.viewmodel
 
+
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import com.example.gestionclinica.model.Documento
 
 class DocumentoViewModel : ViewModel() {
 
+    // Campos del formulario
     var nombre by mutableStateOf("")
         private set
 
@@ -19,7 +23,7 @@ class DocumentoViewModel : ViewModel() {
     var estado by mutableStateOf("")
         private set
 
-    // Mensajes de error
+    // Errores
     var errorNombre by mutableStateOf<String?>(null)
         private set
 
@@ -35,6 +39,9 @@ class DocumentoViewModel : ViewModel() {
     // Mensaje de éxito
     var mensajeExito by mutableStateOf<String?>(null)
         private set
+
+    // Lista de documentos registrados
+    val documentos = mutableStateListOf<Documento>()
 
     fun cambiarNombre(valor: String) {
         nombre = valor
@@ -62,7 +69,7 @@ class DocumentoViewModel : ViewModel() {
 
     fun guardarDocumento(): Boolean {
 
-        // Limpiamos errores anteriores
+        // Limpiar errores anteriores
         errorNombre = null
         errorTipo = null
         errorFuncionario = null
@@ -71,7 +78,7 @@ class DocumentoViewModel : ViewModel() {
 
         var formularioValido = true
 
-        // Validación del nombre
+        // Validar nombre
         if (nombre.isBlank()) {
             errorNombre = "El nombre del documento es obligatorio"
             formularioValido = false
@@ -80,30 +87,40 @@ class DocumentoViewModel : ViewModel() {
             formularioValido = false
         }
 
-        // Validación del tipo
+        // Validar tipo
         if (tipo.isBlank()) {
             errorTipo = "Debe seleccionar un tipo de documento"
             formularioValido = false
         }
 
-        // Validación del funcionario
+        // Validar funcionario
         if (funcionario.isBlank()) {
             errorFuncionario = "El funcionario es obligatorio"
             formularioValido = false
         }
 
-        // Validación del estado
+        // Validar estado
         if (estado.isBlank()) {
             errorEstado = "Debe seleccionar un estado"
             formularioValido = false
         }
 
-        // Si existe algún error
         if (!formularioValido) {
             return false
         }
 
-        // Registro correcto
+        // Crear el documento
+        val nuevoDocumento = Documento(
+            id = documentos.size + 1,
+            nombre = nombre,
+            tipo = tipo,
+            funcionario = funcionario,
+            estado = estado
+        )
+
+        // Guardarlo en la lista
+        documentos.add(nuevoDocumento)
+
         mensajeExito = "Documento registrado correctamente"
 
         return true

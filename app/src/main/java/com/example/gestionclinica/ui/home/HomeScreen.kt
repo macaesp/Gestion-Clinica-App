@@ -17,7 +17,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun HomeScreen(
-    onRegistrarDocumento: () -> Unit
+    onRegistrarDocumento: () -> Unit,
+    onVerDocumentos: () -> Unit
 ) {
 
     Column(
@@ -67,6 +68,15 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Registrar Documento")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onVerDocumentos,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Ver Documentos")
                 }
             }
         }
