@@ -1,4 +1,4 @@
-package com.example.gestionclinica.ui.home
+package com.example.gestionclinica.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -23,10 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Icon
 
 @Composable
 fun HomeScreen(
+    onVerFuncionarios: () -> Unit,
     onRegistrarDocumento: () -> Unit,
     onVerDocumentos: () -> Unit
 ) {
@@ -69,7 +71,6 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // TÍTULO
         Text(
             text = "Gestión documental",
             style = MaterialTheme.typography.titleLarge,
@@ -79,12 +80,70 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Consulta y administra la documentación asociada a funcionarios del área de salud.",
+            text = "Consulta funcionarios y administra su documentación.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        // TARJETA FUNCIONARIOS
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        ) {
+
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Default.People,
+                        contentDescription = null
+                    )
+
+                    Spacer(modifier = Modifier.padding(6.dp))
+
+                    Text(
+                        text = "Funcionarios",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Consulta funcionarios y accede a sus expedientes.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onVerFuncionarios,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Default.People,
+                        contentDescription = null
+                    )
+
+                    Spacer(modifier = Modifier.padding(4.dp))
+
+                    Text("Consultar funcionarios")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // TARJETA DOCUMENTOS
         Card(
@@ -123,7 +182,7 @@ fun HomeScreen(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
                     onClick = onRegistrarDocumento,

@@ -1,5 +1,4 @@
-package com.example.gestionclinica.ui.documentos
-
+package com.example.gestionclinica.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.model.Documento
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
@@ -26,8 +26,17 @@ import com.example.gestionclinica.viewmodel.DocumentoViewModel
 fun ListaDocumentosScreen(
     viewModel: DocumentoViewModel,
     onDocumentoClick: (Documento) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    funcionarioFiltro: String? = null
 ) {
+
+    // Si recibimos un funcionario, mostramos solamente sus documentos.
+    // Si es null, mostramos todos.
+    val documentosMostrados = if (funcionarioFiltro != null) {
+        viewModel.obtenerDocumentosPorFuncionario(funcionarioFiltro)
+    } else {
+        viewModel.documentos
+    }
 
     Column(
         modifier = Modifier
@@ -35,22 +44,56 @@ fun ListaDocumentosScreen(
             .padding(24.dp)
     ) {
 
+        // TÍTULO
         Text(
-            text = "Documentos Registrados",
-            style = MaterialTheme.typography.headlineSmall
+            text = if (funcionarioFiltro != null) {
+                "Documentos del funcionario"
+            } else {
+                "Documentos registrados"
+            },
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Si venimos desde un expediente,
+        // mostramos el nombre del funcionario.
+        if (funcionarioFiltro != null) {
 
-        if (viewModel.documentos.isEmpty()) {
+            Spacer(
+                modifier = Modifier.height(4.dp)
+            )
 
             Text(
-                text = "No hay documentos registrados.",
-                style = MaterialTheme.typography.bodyLarge
+                text = funcionarioFiltro,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
+
+        // SIN DOCUMENTOS
+        if (documentosMostrados.isEmpty()) {
+
+            Text(
+                text = if (funcionarioFiltro != null) {
+                    "Este funcionario no tiene documentos registrados."
+                } else {
+                    "No hay documentos registrados."
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(
+                modifier = Modifier.weight(1f)
             )
 
         } else {
 
+            // LISTA DE DOCUMENTOS
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -58,7 +101,12 @@ fun ListaDocumentosScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                items(viewModel.documentos) { documento ->
+                items(
+                    items = documentosMostrados,
+                    key = { documento ->
+                        documento.id
+                    }
+                ) { documento ->
 
                     DocumentoCard(
                         documento = documento,
@@ -70,7 +118,9 @@ fun ListaDocumentosScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         Button(
             onClick = onVolver,
@@ -101,10 +151,13 @@ fun DocumentoCard(
 
             Text(
                 text = documento.nombre,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -118,15 +171,19 @@ fun DocumentoCard(
 
                 Text(
                     text = documento.estado,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
 
             Text(
                 text = "Funcionario: ${documento.funcionario}",
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

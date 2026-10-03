@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import com.example.gestionclinica.model.Documento
 
 class DocumentoViewModel : ViewModel() {
+
     // CAMPOS DEL FORMULARIO
     var nombre by mutableStateOf("")
         private set
@@ -75,6 +76,53 @@ class DocumentoViewModel : ViewModel() {
         documentoSeleccionado = documento
     }
 
+    // DOCUMENTOS POR FUNCIONARIO
+    fun obtenerDocumentosPorFuncionario(
+        nombreFuncionario: String
+    ): List<Documento> {
+
+        return documentos.filter { documento ->
+            documento.funcionario.equals(
+                nombreFuncionario,
+                ignoreCase = true
+            )
+        }
+    }
+
+    // PREPARAR REGISTRO DESDE
+    // EL EXPEDIENTE
+    fun prepararRegistroParaFuncionario(
+        nombreFuncionario: String
+    ) {
+        funcionario = nombreFuncionario
+
+        nombre = ""
+        tipo = ""
+        estado = ""
+
+        errorNombre = null
+        errorTipo = null
+        errorFuncionario = null
+        errorEstado = null
+
+        mensajeExito = null
+    }
+
+    // LIMPIAR FORMULARIO
+    fun limpiarFormulario() {
+        nombre = ""
+        tipo = ""
+        funcionario = ""
+        estado = ""
+
+        errorNombre = null
+        errorTipo = null
+        errorFuncionario = null
+        errorEstado = null
+
+        mensajeExito = null
+    }
+
     // GUARDAR DOCUMENTO
     fun guardarDocumento(): Boolean {
 
@@ -86,26 +134,46 @@ class DocumentoViewModel : ViewModel() {
 
         var formularioValido = true
 
+        // VALIDAR NOMBRE
         if (nombre.isBlank()) {
-            errorNombre = "El nombre del documento es obligatorio"
+
+            errorNombre =
+                "El nombre del documento es obligatorio"
+
             formularioValido = false
+
         } else if (nombre.length < 3) {
-            errorNombre = "El nombre debe tener al menos 3 caracteres"
+
+            errorNombre =
+                "El nombre debe tener al menos 3 caracteres"
+
             formularioValido = false
         }
 
+        // VALIDAR TIPO
         if (tipo.isBlank()) {
-            errorTipo = "Debe seleccionar un tipo de documento"
+
+            errorTipo =
+                "Debe seleccionar un tipo de documento"
+
             formularioValido = false
         }
 
+        // VALIDAR FUNCIONARIO
         if (funcionario.isBlank()) {
-            errorFuncionario = "El funcionario es obligatorio"
+
+            errorFuncionario =
+                "El funcionario es obligatorio"
+
             formularioValido = false
         }
 
+        // VALIDAR ESTADO
         if (estado.isBlank()) {
-            errorEstado = "Debe seleccionar un estado"
+
+            errorEstado =
+                "Debe seleccionar un estado"
+
             formularioValido = false
         }
 
@@ -113,6 +181,7 @@ class DocumentoViewModel : ViewModel() {
             return false
         }
 
+        // CREAR DOCUMENTO
         val nuevoDocumento = Documento(
             id = documentos.size + 1,
             nombre = nombre,
@@ -121,12 +190,15 @@ class DocumentoViewModel : ViewModel() {
             estado = estado
         )
 
+        // GUARDAR
         documentos.add(nuevoDocumento)
 
-        // El documento recién creado pasa a ser el seleccionado.
+        // El documento recién creado pasa
+        // a ser el documento seleccionado.
         documentoSeleccionado = nuevoDocumento
 
-        mensajeExito = "Documento registrado correctamente"
+        mensajeExito =
+            "Documento registrado correctamente"
 
         return true
     }
