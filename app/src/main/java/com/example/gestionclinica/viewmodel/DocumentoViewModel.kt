@@ -9,8 +9,7 @@ import androidx.lifecycle.ViewModel
 import com.example.gestionclinica.model.Documento
 
 class DocumentoViewModel : ViewModel() {
-
-    // Campos del formulario
+    // CAMPOS DEL FORMULARIO
     var nombre by mutableStateOf("")
         private set
 
@@ -23,7 +22,7 @@ class DocumentoViewModel : ViewModel() {
     var estado by mutableStateOf("")
         private set
 
-    // Errores
+    // ERRORES
     var errorNombre by mutableStateOf<String?>(null)
         private set
 
@@ -36,13 +35,17 @@ class DocumentoViewModel : ViewModel() {
     var errorEstado by mutableStateOf<String?>(null)
         private set
 
-    // Mensaje de éxito
     var mensajeExito by mutableStateOf<String?>(null)
         private set
 
-    // Lista de documentos registrados
+    // DOCUMENTOS REGISTRADOS
     val documentos = mutableStateListOf<Documento>()
 
+    // Documento que queremos mostrar en Detalle
+    var documentoSeleccionado by mutableStateOf<Documento?>(null)
+        private set
+
+    // CAMBIOS DEL FORMULARIO
     fun cambiarNombre(valor: String) {
         nombre = valor
         errorNombre = null
@@ -67,9 +70,14 @@ class DocumentoViewModel : ViewModel() {
         mensajeExito = null
     }
 
+    // SELECCIONAR DOCUMENTO
+    fun seleccionarDocumento(documento: Documento) {
+        documentoSeleccionado = documento
+    }
+
+    // GUARDAR DOCUMENTO
     fun guardarDocumento(): Boolean {
 
-        // Limpiar errores anteriores
         errorNombre = null
         errorTipo = null
         errorFuncionario = null
@@ -78,7 +86,6 @@ class DocumentoViewModel : ViewModel() {
 
         var formularioValido = true
 
-        // Validar nombre
         if (nombre.isBlank()) {
             errorNombre = "El nombre del documento es obligatorio"
             formularioValido = false
@@ -87,19 +94,16 @@ class DocumentoViewModel : ViewModel() {
             formularioValido = false
         }
 
-        // Validar tipo
         if (tipo.isBlank()) {
             errorTipo = "Debe seleccionar un tipo de documento"
             formularioValido = false
         }
 
-        // Validar funcionario
         if (funcionario.isBlank()) {
             errorFuncionario = "El funcionario es obligatorio"
             formularioValido = false
         }
 
-        // Validar estado
         if (estado.isBlank()) {
             errorEstado = "Debe seleccionar un estado"
             formularioValido = false
@@ -109,7 +113,6 @@ class DocumentoViewModel : ViewModel() {
             return false
         }
 
-        // Crear el documento
         val nuevoDocumento = Documento(
             id = documentos.size + 1,
             nombre = nombre,
@@ -118,8 +121,10 @@ class DocumentoViewModel : ViewModel() {
             estado = estado
         )
 
-        // Guardarlo en la lista
         documentos.add(nuevoDocumento)
+
+        // El documento recién creado pasa a ser el seleccionado.
+        documentoSeleccionado = nuevoDocumento
 
         mensajeExito = "Documento registrado correctamente"
 

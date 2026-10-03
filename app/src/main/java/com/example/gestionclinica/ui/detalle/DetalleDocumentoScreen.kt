@@ -1,6 +1,5 @@
 package com.example.gestionclinica.ui.detalle
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,11 +21,12 @@ fun DetalleDocumentoScreen(
     onVolver: () -> Unit
 ) {
 
+    val documento = viewModel.documentoSeleccionado
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Top
+            .padding(24.dp)
     ) {
 
         Text(
@@ -37,63 +36,53 @@ fun DetalleDocumentoScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = 4.dp
-            )
-        ) {
+        if (documento != null) {
 
-            Column(
-                modifier = Modifier.padding(20.dp)
+            Card(
+                modifier = Modifier.fillMaxWidth()
             ) {
 
-                Text(
-                    text = "Nombre",
-                    style = MaterialTheme.typography.labelMedium
-                )
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
 
-                Text(
-                    text = viewModel.nombre,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                    Text(
+                        text = documento.nombre,
+                        style = MaterialTheme.typography.titleLarge
+                    )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Tipo de documento",
-                    style = MaterialTheme.typography.labelMedium
-                )
+                    Text(
+                        text = "ID: ${documento.id}"
+                    )
 
-                Text(
-                    text = viewModel.tipo,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Tipo: ${documento.tipo}"
+                    )
 
-                Text(
-                    text = "Funcionario",
-                    style = MaterialTheme.typography.labelMedium
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = viewModel.funcionario,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                    Text(
+                        text = "Funcionario: ${documento.funcionario}"
+                    )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = "Estado",
-                    style = MaterialTheme.typography.labelMedium
-                )
-
-                Text(
-                    text = viewModel.estado,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                    Text(
+                        text = "Estado: ${documento.estado}"
+                    )
+                }
             }
+
+        } else {
+
+            Text(
+                text = "No hay un documento seleccionado.",
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
