@@ -1,1 +1,1 @@
-# Sistema-Gestion-Clinica
+# Gestion Clinica App
