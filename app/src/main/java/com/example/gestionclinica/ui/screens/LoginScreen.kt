@@ -28,16 +28,17 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = authViewModel.rut,
-            onValueChange = authViewModel::cambiarRut,
+            onValueChange = { authViewModel.cambiarRut(it) },
             label = { Text("RUT (Ej: 11-1)") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = authViewModel.password,
-            onValueChange = authViewModel::cambiarPassword,
+            onValueChange = { authViewModel.cambiarPassword(it) },
             label = { Text("Contraseña (Es 123)") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),

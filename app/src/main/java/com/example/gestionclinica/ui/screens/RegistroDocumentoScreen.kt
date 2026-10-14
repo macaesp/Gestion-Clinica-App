@@ -2,12 +2,15 @@ package com.example.gestionclinica.ui.screens
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
 
@@ -36,9 +39,16 @@ fun RegistroDocumentoScreen(
         // ID Funcionario (Solo lectura)
         OutlinedTextField(
             value = viewModel.funcionarioId?.toString() ?: "",
-            onValueChange = { },
-            readOnly = true,
+            onValueChange = { nuevoValor ->
+                // Convierte el texto a Int, o lo deja en null si está vacío o no es un número válido
+                val id = if (nuevoValor.isBlank()) null else nuevoValor.toIntOrNull()
+                viewModel.cambiarFuncionario(id)
+            },
             label = { Text("ID Funcionario") },
+            isError = viewModel.errorFuncionario != null,
+            supportingText = { viewModel.errorFuncionario?.let { Text(it) } },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), // Abre el teclado numérico
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -48,14 +58,22 @@ fun RegistroDocumentoScreen(
             expanded = menuTipoAbierto,
             onExpandedChange = { menuTipoAbierto = !menuTipoAbierto }
         ) {
-            OutlinedTextField(
-                value = viewModel.tipo,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Categoría de Documento") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuTipoAbierto) },
-                modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-            )
+            Box {
+                OutlinedTextField(
+                    value = viewModel.tipo,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Categoría de Documento") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuTipoAbierto) },
+                    modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                )
+                // Capa transparente que captura el clic por encima del scroll
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { menuTipoAbierto = !menuTipoAbierto }
+                )
+            }
             ExposedDropdownMenu(expanded = menuTipoAbierto, onDismissRequest = { menuTipoAbierto = false }) {
                 tiposDocumento.forEach { tipo ->
                     DropdownMenuItem(
