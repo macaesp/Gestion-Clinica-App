@@ -1,217 +1,116 @@
 package com.example.gestionclinica.ui.screens
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegistroDocumentoScreen(
     viewModel: DocumentoViewModel,
     onDocumentoGuardado: () -> Unit
 ) {
-
-    // Controla si los menús están abiertos o cerrados
     var menuTipoAbierto by remember { mutableStateOf(false) }
     var menuEstadoAbierto by remember { mutableStateOf(false) }
 
-    // Opciones para el tipo de documento
-    val tiposDocumento = listOf(
-        "Contrato",
-        "Anexo",
-        "Certificado",
-        "Permiso",
-        "Capacitación",
-        "Otro"
-    )
-
-    // Opciones disponibles para el estado
-    val estadosDocumento = listOf(
-        "Vigente",
-        "Pendiente",
-        "Vencido"
-    )
+    val tiposDocumento = listOf("Laboral", "Permiso", "Capacitacion", "General")
+    val estadosDocumento = listOf("Vigente", "Pendiente", "Vencido")
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
+            .verticalScroll(rememberScrollState())
     ) {
-
-        Text(
-            text = "Registrar Documento",
-            style = MaterialTheme.typography.headlineSmall
-        )
-
+        Text(text = "Registrar Documento", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Nombre del Documento
+        // ID Funcionario (Solo lectura)
         OutlinedTextField(
-            value = viewModel.nombre,
-            onValueChange = viewModel::cambiarNombre,
-            label = {
-                Text("Nombre del Documento")
-            },
-            isError = viewModel.errorNombre != null,
-            supportingText = {
-                viewModel.errorNombre?.let { mensaje ->
-                    Text(mensaje)
-                }
-            },
-            singleLine = true,
+            value = viewModel.funcionarioId?.toString() ?: "",
+            onValueChange = { },
+            readOnly = true,
+            label = { Text("ID Funcionario") },
             modifier = Modifier.fillMaxWidth()
         )
-
         Spacer(modifier = Modifier.height(8.dp))
 
         // Tipo Documento
         ExposedDropdownMenuBox(
             expanded = menuTipoAbierto,
-            onExpandedChange = {
-                menuTipoAbierto = !menuTipoAbierto
-            }
+            onExpandedChange = { menuTipoAbierto = !menuTipoAbierto }
         ) {
-
             OutlinedTextField(
                 value = viewModel.tipo,
                 onValueChange = {},
                 readOnly = true,
-                label = {
-                    Text("Tipo de Documento")
-                },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(
-                        expanded = menuTipoAbierto
-                    )
-                },
-                isError = viewModel.errorTipo != null,
-                supportingText = {
-                    viewModel.errorTipo?.let { mensaje ->
-                        Text(mensaje)
-                    }
-                },
-                modifier = Modifier
-                    .menuAnchor(
-                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                        enabled = true
-                    )
-                    .fillMaxWidth()
+                label = { Text("Categoría de Documento") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuTipoAbierto) },
+                modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
             )
-
-            ExposedDropdownMenu(
-                expanded = menuTipoAbierto,
-                onDismissRequest = {
-                    menuTipoAbierto = false
-                }
-            ) {
-
+            ExposedDropdownMenu(expanded = menuTipoAbierto, onDismissRequest = { menuTipoAbierto = false }) {
                 tiposDocumento.forEach { tipo ->
-
                     DropdownMenuItem(
-                        text = {
-                            Text(tipo)
-                        },
-                        onClick = {
-                            viewModel.cambiarTipo(tipo)
-                            menuTipoAbierto = false
-                        }
+                        text = { Text(tipo) },
+                        onClick = { viewModel.cambiarTipo(tipo); menuTipoAbierto = false }
                     )
                 }
             }
         }
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
+        // CAMPOS DINÁMICOS SEGÚN EL TIPO
+        if (viewModel.tipo == "Laboral") {
+            Text("Detalles Laborales", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = viewModel.subtipoLaboral,
+                onValueChange = viewModel::cambiarSubtipoLaboral,
+                label = { Text("Subtipo (Ej: Contrato, Anexo)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else if (viewModel.tipo == "Permiso") {
+            Text("Detalles de Permiso", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(value = viewModel.tipoSolicitud, onValueChange = viewModel::cambiarTipoSolicitud, label = { Text("Tipo de Solicitud") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = viewModel.fechaInicio, onValueChange = viewModel::cambiarFechaInicio, label = { Text("Fecha Inicio (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = viewModel.fechaFin, onValueChange = viewModel::cambiarFechaFin, label = { Text("Fecha Fin (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = viewModel.estadoAprobacion, onValueChange = viewModel::cambiarEstadoAprobacion, label = { Text("Estado Aprobación") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = viewModel.respaldo, onValueChange = viewModel::cambiarRespaldo, label = { Text("Respaldo Adjunto") }, modifier = Modifier.fillMaxWidth())
+        } else if (viewModel.tipo == "Capacitacion") {
+            Text("Detalles de Capacitación", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(value = viewModel.nombreCurso, onValueChange = viewModel::cambiarNombreCurso, label = { Text("Nombre del Curso") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = viewModel.cantidadHoras, onValueChange = viewModel::cambiarCantidadHoras, label = { Text("Cantidad de Horas") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = viewModel.certificadoRespaldo, onValueChange = viewModel::cambiarCertificadoRespaldo, label = { Text("Certificado Respaldo") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = viewModel.estadoValidacion, onValueChange = viewModel::cambiarEstadoValidacion, label = { Text("Estado Validación") }, modifier = Modifier.fillMaxWidth())
+        }
 
-        // Ver Funcionario
-        OutlinedTextField(
-            value = viewModel.funcionario,
-            onValueChange = viewModel::cambiarFuncionario,
-            label = {
-                Text("Funcionario")
-            },
-            isError = viewModel.errorFuncionario != null,
-            supportingText = {
-                viewModel.errorFuncionario?.let { mensaje ->
-                    Text(mensaje)
-                }
-            },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Ver el estado del documento
+        // Estado General
         ExposedDropdownMenuBox(
             expanded = menuEstadoAbierto,
-            onExpandedChange = {
-                menuEstadoAbierto = !menuEstadoAbierto
-            }
+            onExpandedChange = { menuEstadoAbierto = !menuEstadoAbierto }
         ) {
-
             OutlinedTextField(
                 value = viewModel.estado,
                 onValueChange = {},
                 readOnly = true,
-                label = {
-                    Text("Estado")
-                },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(
-                        expanded = menuEstadoAbierto
-                    )
-                },
-                isError = viewModel.errorEstado != null,
-                supportingText = {
-                    viewModel.errorEstado?.let { mensaje ->
-                        Text(mensaje)
-                    }
-                },
-                modifier = Modifier
-                    .menuAnchor(
-                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                        enabled = true
-                    )
-                    .fillMaxWidth()
+                label = { Text("Estado General del Documento") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuEstadoAbierto) },
+                modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
             )
-
-            ExposedDropdownMenu(
-                expanded = menuEstadoAbierto,
-                onDismissRequest = {
-                    menuEstadoAbierto = false
-                }
-            ) {
-
+            ExposedDropdownMenu(expanded = menuEstadoAbierto, onDismissRequest = { menuEstadoAbierto = false }) {
                 estadosDocumento.forEach { estado ->
-
                     DropdownMenuItem(
-                        text = {
-                            Text(estado)
-                        },
-                        onClick = {
-                            viewModel.cambiarEstado(estado)
-                            menuEstadoAbierto = false
-                        }
+                        text = { Text(estado) },
+                        onClick = { viewModel.cambiarEstado(estado); menuEstadoAbierto = false }
                     )
                 }
             }
@@ -219,20 +118,12 @@ fun RegistroDocumentoScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Boton para Guardar
         Button(
             onClick = {
-
-                val formularioValido =
-                    viewModel.guardarDocumento()
-
-                if (formularioValido) {
-                    onDocumentoGuardado()
-                }
+                if (viewModel.guardarDocumento()) onDocumentoGuardado()
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-
             Text("Guardar Documento")
         }
     }

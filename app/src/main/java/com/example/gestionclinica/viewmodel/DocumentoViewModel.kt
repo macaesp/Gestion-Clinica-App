@@ -1,205 +1,139 @@
 package com.example.gestionclinica.viewmodel
 
-
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.example.gestionclinica.model.Documento
+import com.example.gestionclinica.model.EspecificacionDocumento
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class DocumentoViewModel : ViewModel() {
-
-    // CAMPOS DEL FORMULARIO
-    var nombre by mutableStateOf("")
-        private set
-
+    // CAMPOS GENERALES
     var tipo by mutableStateOf("")
         private set
-
-    var funcionario by mutableStateOf("")
+    var funcionarioId by mutableStateOf<Int?>(null)
         private set
-
     var estado by mutableStateOf("")
         private set
 
-    // ERRORES
-    var errorNombre by mutableStateOf<String?>(null)
+    // CAMPOS ESPECÍFICOS: Laboral
+    var subtipoLaboral by mutableStateOf("")
         private set
 
+    // CAMPOS ESPECÍFICOS: Permiso
+    var tipoSolicitud by mutableStateOf("")
+        private set
+    var respaldo by mutableStateOf("")
+        private set
+    var fechaInicio by mutableStateOf("")
+        private set
+    var fechaFin by mutableStateOf("")
+        private set
+    var estadoAprobacion by mutableStateOf("")
+        private set
+
+    // CAMPOS ESPECÍFICOS: Capacitacion
+    var nombreCurso by mutableStateOf("")
+        private set
+    var certificadoRespaldo by mutableStateOf("")
+        private set
+    var cantidadHoras by mutableStateOf("")
+        private set
+    var estadoValidacion by mutableStateOf("")
+        private set
+
+    // ERRORES Y MENSAJES
     var errorTipo by mutableStateOf<String?>(null)
         private set
-
     var errorFuncionario by mutableStateOf<String?>(null)
         private set
-
     var errorEstado by mutableStateOf<String?>(null)
         private set
-
     var mensajeExito by mutableStateOf<String?>(null)
         private set
 
-    // DOCUMENTOS REGISTRADOS
     val documentos = mutableStateListOf<Documento>()
-
-    // Documento que queremos mostrar en Detalle
     var documentoSeleccionado by mutableStateOf<Documento?>(null)
         private set
 
-    // CAMBIOS DEL FORMULARIO
-    fun cambiarNombre(valor: String) {
-        nombre = valor
-        errorNombre = null
-        mensajeExito = null
-    }
+    // MÉTODOS DE CAMBIO GENERALES
+    fun cambiarTipo(valor: String) { tipo = valor; errorTipo = null }
+    fun cambiarFuncionario(id: Int?) { funcionarioId = id; errorFuncionario = null }
+    fun cambiarEstado(valor: String) { estado = valor; errorEstado = null }
 
-    fun cambiarTipo(valor: String) {
-        tipo = valor
-        errorTipo = null
-        mensajeExito = null
-    }
+    // MÉTODOS DE CAMBIO ESPECÍFICOS
+    fun cambiarSubtipoLaboral(valor: String) { subtipoLaboral = valor }
+    fun cambiarTipoSolicitud(valor: String) { tipoSolicitud = valor }
+    fun cambiarRespaldo(valor: String) { respaldo = valor }
+    fun cambiarFechaInicio(valor: String) { fechaInicio = valor }
+    fun cambiarFechaFin(valor: String) { fechaFin = valor }
+    fun cambiarEstadoAprobacion(valor: String) { estadoAprobacion = valor }
+    fun cambiarNombreCurso(valor: String) { nombreCurso = valor }
+    fun cambiarCertificadoRespaldo(valor: String) { certificadoRespaldo = valor }
+    fun cambiarCantidadHoras(valor: String) { cantidadHoras = valor }
+    fun cambiarEstadoValidacion(valor: String) { estadoValidacion = valor }
 
-    fun cambiarFuncionario(valor: String) {
-        funcionario = valor
-        errorFuncionario = null
-        mensajeExito = null
-    }
-
-    fun cambiarEstado(valor: String) {
-        estado = valor
-        errorEstado = null
-        mensajeExito = null
-    }
-
-    // SELECCIONAR DOCUMENTO
     fun seleccionarDocumento(documento: Documento) {
         documentoSeleccionado = documento
     }
 
-    // DOCUMENTOS POR FUNCIONARIO
-    fun obtenerDocumentosPorFuncionario(
-        nombreFuncionario: String
-    ): List<Documento> {
-
-        return documentos.filter { documento ->
-            documento.funcionario.equals(
-                nombreFuncionario,
-                ignoreCase = true
-            )
-        }
+    fun obtenerDocumentosPorFuncionario(idFuncionario: Int): List<Documento> {
+        return documentos.filter { it.funcionarioId == idFuncionario }
     }
 
-    // PREPARAR REGISTRO DESDE
-    // EL EXPEDIENTE
-    fun prepararRegistroParaFuncionario(
-        nombreFuncionario: String
-    ) {
-        funcionario = nombreFuncionario
-
-        nombre = ""
-        tipo = ""
-        estado = ""
-
-        errorNombre = null
-        errorTipo = null
-        errorFuncionario = null
-        errorEstado = null
-
-        mensajeExito = null
+    fun prepararRegistroParaFuncionario(idFuncionario: Int) {
+        limpiarFormulario()
+        funcionarioId = idFuncionario
     }
 
-    // LIMPIAR FORMULARIO
     fun limpiarFormulario() {
-        nombre = ""
-        tipo = ""
-        funcionario = ""
-        estado = ""
-
-        errorNombre = null
-        errorTipo = null
-        errorFuncionario = null
-        errorEstado = null
-
-        mensajeExito = null
+        tipo = ""; funcionarioId = null; estado = ""
+        subtipoLaboral = ""
+        tipoSolicitud = ""; respaldo = ""; fechaInicio = ""; fechaFin = ""; estadoAprobacion = ""
+        nombreCurso = ""; certificadoRespaldo = ""; cantidadHoras = ""; estadoValidacion = ""
+        errorTipo = null; errorFuncionario = null; errorEstado = null; mensajeExito = null
     }
 
-    // GUARDAR DOCUMENTO
-    fun guardarDocumento(): Boolean {
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun guardarDocumento(usuarioLogueadoId: Int = 1): Boolean {
+        if (tipo.isBlank()) { errorTipo = "Requerido"; return false }
+        if (funcionarioId == null) { errorFuncionario = "Requerido"; return false }
+        if (estado.isBlank()) { errorEstado = "Requerido"; return false }
 
-        errorNombre = null
-        errorTipo = null
-        errorFuncionario = null
-        errorEstado = null
-        mensajeExito = null
-
-        var formularioValido = true
-
-        // VALIDAR NOMBRE
-        if (nombre.isBlank()) {
-
-            errorNombre =
-                "El nombre del documento es obligatorio"
-
-            formularioValido = false
-
-        } else if (nombre.length < 3) {
-
-            errorNombre =
-                "El nombre debe tener al menos 3 caracteres"
-
-            formularioValido = false
+        val especificacion = when (tipo) {
+            "Laboral" -> EspecificacionDocumento.Laboral(subtipo = subtipoLaboral)
+            "Permiso" -> EspecificacionDocumento.Permiso(
+                tipoSolicitud = tipoSolicitud,
+                respaldo = respaldo,
+                fechaInicio = fechaInicio,
+                fechaFin = fechaFin,
+                estadoAprobacion = estadoAprobacion
+            )
+            "Capacitacion" -> EspecificacionDocumento.Capacitacion(
+                nombreCurso = nombreCurso,
+                certificadoRespaldo = certificadoRespaldo,
+                cantidadHoras = cantidadHoras.toIntOrNull() ?: 0,
+                estadoValidacion = estadoValidacion
+            )
+            else -> EspecificacionDocumento.General
         }
 
-        // VALIDAR TIPO
-        if (tipo.isBlank()) {
-
-            errorTipo =
-                "Debe seleccionar un tipo de documento"
-
-            formularioValido = false
-        }
-
-        // VALIDAR FUNCIONARIO
-        if (funcionario.isBlank()) {
-
-            errorFuncionario =
-                "El funcionario es obligatorio"
-
-            formularioValido = false
-        }
-
-        // VALIDAR ESTADO
-        if (estado.isBlank()) {
-
-            errorEstado =
-                "Debe seleccionar un estado"
-
-            formularioValido = false
-        }
-
-        if (!formularioValido) {
-            return false
-        }
-
-        // CREAR DOCUMENTO
         val nuevoDocumento = Documento(
             id = documentos.size + 1,
-            nombre = nombre,
-            tipo = tipo,
-            funcionario = funcionario,
-            estado = estado
+            funcionarioId = funcionarioId!!,
+            usuarioCargaId = usuarioLogueadoId,
+            fechaCarga = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
+            estado = estado,
+            clasificacion = especificacion
         )
 
-        // GUARDAR
         documentos.add(nuevoDocumento)
-
-        // El documento recién creado pasa
-        // a ser el documento seleccionado.
         documentoSeleccionado = nuevoDocumento
-
-        mensajeExito =
-            "Documento registrado correctamente"
-
         return true
     }
 }

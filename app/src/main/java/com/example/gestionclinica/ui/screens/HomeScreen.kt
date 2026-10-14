@@ -1,242 +1,107 @@
+// Reemplaza todo el contenido de HomeScreen.kt con esto:
 package com.example.gestionclinica.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.gestionclinica.model.RolUsuario
+import com.example.gestionclinica.viewmodel.AuthViewModel
 
 @Composable
 fun HomeScreen(
+    authViewModel: AuthViewModel,
     onVerFuncionarios: () -> Unit,
     onRegistrarDocumento: () -> Unit,
-    onVerDocumentos: () -> Unit
+    onVerDocumentos: () -> Unit,
+    onVerTrazabilidad: () -> Unit, // NUEVO PARÁMETRO
+    onLogout: () -> Unit
 ) {
+    val usuario = authViewModel.usuarioActual
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                horizontal = 24.dp,
-                vertical = 32.dp
-            )
-    ) {
-
-        // ENCABEZADO
-        Text(
-            text = "CMQ – Área Salud",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "CMQ Área Salud", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            IconButton(onClick = { authViewModel.logout(); onLogout() }) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesión")
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Bienvenido/a",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-
+        Text(text = "Bienvenido/a,", style = MaterialTheme.typography.headlineSmall)
+        Text(text = usuario?.nombre ?: "", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Sistema de gestión documental de funcionarios",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text(text = "Perfil: ${usuario?.rol?.name}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Spacer(modifier = Modifier.height(24.dp))
-
         HorizontalDivider()
-
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text(
-            text = "Gestión documental",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Consulta funcionarios y administra su documentación.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // TARJETA FUNCIONARIOS
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            )
-        ) {
-
-            Column(
-                modifier = Modifier.padding(20.dp)
-            ) {
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.People,
-                        contentDescription = null
-                    )
-
+        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.People, contentDescription = null)
                     Spacer(modifier = Modifier.padding(6.dp))
-
-                    Text(
-                        text = "Funcionarios",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(text = "Funcionarios", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Consulta funcionarios y accede a sus expedientes.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = onVerFuncionarios,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.People,
-                        contentDescription = null
-                    )
-
+                Button(onClick = onVerFuncionarios, modifier = Modifier.fillMaxWidth()) {
+                    Icon(imageVector = Icons.Default.People, contentDescription = null)
                     Spacer(modifier = Modifier.padding(4.dp))
-
                     Text("Consultar funcionarios")
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
 
-        // TARJETA DOCUMENTOS
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            )
-        ) {
-
-            Column(
-                modifier = Modifier.padding(20.dp)
-            ) {
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.Description,
-                        contentDescription = null
-                    )
-
+        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.Description, contentDescription = null)
                     Spacer(modifier = Modifier.padding(6.dp))
-
-                    Text(
-                        text = "Documentos",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(text = "Documentos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Registra nuevos documentos y consulta los documentos existentes.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Button(
-                    onClick = onRegistrarDocumento,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.Description,
-                        contentDescription = null
-                    )
-
-                    Spacer(modifier = Modifier.padding(4.dp))
-
-                    Text("Registrar documento")
+                if (usuario?.rol == RolUsuario.RECURSOS_HUMANOS || usuario?.rol == RolUsuario.ADMINISTRADOR_SISTEMA || usuario?.rol == RolUsuario.JEFATURA) {
+                    Button(onClick = onRegistrarDocumento, modifier = Modifier.fillMaxWidth()) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Text("Registrar documento")
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedButton(
-                    onClick = onVerDocumentos,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = null
-                    )
-
+                OutlinedButton(onClick = onVerDocumentos, modifier = Modifier.fillMaxWidth()) {
+                    Icon(imageVector = Icons.Default.Folder, contentDescription = null)
                     Spacer(modifier = Modifier.padding(4.dp))
-
                     Text("Ver documentos")
                 }
             }
         }
 
-        Spacer(
-            modifier = Modifier.weight(1f)
-        )
-
-        // PIE DE PÁGINA
-        HorizontalDivider()
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-
-            Text(
-                text = "CMQ · Área Salud",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        // NUEVA TARJETA: Solo visible para Admin y TI
+        if (usuario?.rol == RolUsuario.ADMINISTRADOR_SISTEMA || usuario?.rol == RolUsuario.TI_CIBERSEGURIDAD) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Security, contentDescription = null)
+                        Spacer(modifier = Modifier.padding(6.dp))
+                        Text(text = "Auditoría", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedButton(onClick = onVerTrazabilidad, modifier = Modifier.fillMaxWidth()) {
+                        Text("Ver Trazabilidad")
+                    }
+                }
+            }
         }
     }
 }

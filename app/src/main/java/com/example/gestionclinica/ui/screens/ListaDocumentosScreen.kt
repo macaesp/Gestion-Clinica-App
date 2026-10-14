@@ -1,25 +1,16 @@
 package com.example.gestionclinica.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.model.Documento
+import com.example.gestionclinica.model.EspecificacionDocumento
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
 
 @Composable
@@ -27,164 +18,70 @@ fun ListaDocumentosScreen(
     viewModel: DocumentoViewModel,
     onDocumentoClick: (Documento) -> Unit,
     onVolver: () -> Unit,
-    funcionarioFiltro: String? = null
+    funcionarioFiltroId: Int? = null
 ) {
-
-    // Si recibimos un funcionario, mostramos solamente sus documentos.
-    // Si es null, mostramos todos.
-    val documentosMostrados = if (funcionarioFiltro != null) {
-        viewModel.obtenerDocumentosPorFuncionario(funcionarioFiltro)
+    val documentosMostrados = if (funcionarioFiltroId != null) {
+        viewModel.obtenerDocumentosPorFuncionario(funcionarioFiltroId)
     } else {
         viewModel.documentos
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
+        modifier = Modifier.fillMaxSize().padding(24.dp)
     ) {
-
-        // TÍTULO
         Text(
-            text = if (funcionarioFiltro != null) {
-                "Documentos del funcionario"
-            } else {
-                "Documentos registrados"
-            },
+            text = if (funcionarioFiltroId != null) "Documentos del funcionario" else "Documentos registrados",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
 
-        // Si venimos desde un expediente,
-        // mostramos el nombre del funcionario.
-        if (funcionarioFiltro != null) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(
-                modifier = Modifier.height(4.dp)
-            )
-
-            Text(
-                text = funcionarioFiltro,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
-
-        // SIN DOCUMENTOS
         if (documentosMostrados.isEmpty()) {
-
             Text(
-                text = if (funcionarioFiltro != null) {
-                    "Este funcionario no tiene documentos registrados."
-                } else {
-                    "No hay documentos registrados."
-                },
+                text = "No hay documentos registrados.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            Spacer(
-                modifier = Modifier.weight(1f)
-            )
-
+            Spacer(modifier = Modifier.weight(1f))
         } else {
-
-            // LISTA DE DOCUMENTOS
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-
-                items(
-                    items = documentosMostrados,
-                    key = { documento ->
-                        documento.id
-                    }
-                ) { documento ->
-
-                    DocumentoCard(
-                        documento = documento,
-                        onClick = {
-                            onDocumentoClick(documento)
-                        }
-                    )
+                items(items = documentosMostrados, key = { it.id }) { documento ->
+                    DocumentoCard(documento = documento, onClick = { onDocumentoClick(documento) })
                 }
             }
         }
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
-
-        Button(
-            onClick = onVolver,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onVolver, modifier = Modifier.fillMaxWidth()) {
             Text("Volver")
         }
     }
 }
 
 @Composable
-fun DocumentoCard(
-    documento: Documento,
-    onClick: () -> Unit
-) {
+fun DocumentoCard(documento: Documento, onClick: () -> Unit) {
+    // Determinamos qué mostrar según la clasificación
+    val tipoTexto = when (documento.clasificacion) {
+        is EspecificacionDocumento.Laboral -> "Laboral"
+        is EspecificacionDocumento.Permiso -> "Permiso"
+        is EspecificacionDocumento.Capacitacion -> "Capacitación"
+        is EspecificacionDocumento.General -> "General"
+    }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onClick()
+    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = "Documento #$tipoTexto", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "ID Funcionario: ${documento.funcionarioId}", style = MaterialTheme.typography.bodyMedium)
+                Text(text = documento.estado, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
-    ) {
-
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-
-            Text(
-                text = documento.nombre,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-
-                Text(
-                    text = documento.tipo,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Text(
-                    text = documento.estado,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
-
-            Text(
-                text = "Funcionario: ${documento.funcionario}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "Fecha carga: ${documento.fechaCarga}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

@@ -208,7 +208,7 @@ private fun FuncionarioCard(
                 )
 
                 Text(
-                    text = "${funcionario.cargo} · ${funcionario.establecimiento}",
+                    text = "${funcionario.cargo} - ${funcionario.centroSalud}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
