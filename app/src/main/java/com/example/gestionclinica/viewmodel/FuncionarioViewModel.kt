@@ -1,12 +1,21 @@
 package com.example.gestionclinica.viewmodel
+
+import android.app.Application
+import android.database.sqlite.SQLiteConstraintException
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.gestionclinica.data.AppDatabase
 import com.example.gestionclinica.model.Funcionario
+import kotlinx.coroutines.launch
 
-class FuncionarioViewModel : ViewModel() {
+class FuncionarioViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val dao = AppDatabase.getInstance(application).funcionarioDao()
+
     // Texto ingresado en el buscador
     var busqueda by mutableStateOf("")
         private set
@@ -15,33 +24,17 @@ class FuncionarioViewModel : ViewModel() {
     var funcionarioSeleccionado by mutableStateOf<Funcionario?>(null)
         private set
 
-    // Datos temporales (ahora es una lista observable para poder agregar funcionarios)
-    private val funcionarios = mutableStateListOf(
-        Funcionario(
-            id = 1,
-            rut = "12.345.678-9",
-            nombre = "María González",
-            centroSalud = "CESFAM",
-            cargo = "Enfermera",
-            profesion = "Enfermería",
-            tipoContrato = "Planta",
-            fechaIngreso = "2015-03-01",
-            situacionContractual = "Vigente",
-            estado = "Activo"
-        ),
-        Funcionario(
-            id = 2,
-            rut = "15.678.901-2",
-            nombre = "Juan Pérez",
-            centroSalud = "CECOSF",
-            cargo = "Técnico en Enfermería",
-            profesion = "TENS",
-            tipoContrato = "Contrata",
-            fechaIngreso = "2018-06-15",
-            situacionContractual = "Vigente",
-            estado = "Activo"
-        )
-    )
+    // Espejo en memoria de la tabla "funcionarios"; se actualiza solo cuando cambia la BD.
+    private val funcionarios = mutableStateListOf<Funcionario>()
+
+    init {
+        viewModelScope.launch {
+            dao.observarTodos().collect { lista ->
+                funcionarios.clear()
+                funcionarios.addAll(lista)
+            }
+        }
+    }
 
     // Lista que utiliza la pantalla
     val funcionariosFiltrados: List<Funcionario>
@@ -139,7 +132,7 @@ class FuncionarioViewModel : ViewModel() {
         }
 
         val nuevo = Funcionario(
-            id = (funcionarios.maxOfOrNull { it.id } ?: 0) + 1,
+            id = 0, // lo asigna Room (autoincremental)
             rut = rut,
             nombre = nuevoNombre.trim(),
             centroSalud = nuevoCentroSalud.trim(),
@@ -150,7 +143,13 @@ class FuncionarioViewModel : ViewModel() {
             situacionContractual = nuevaSituacion,
             estado = nuevoEstado
         )
-        funcionarios.add(nuevo)
+        viewModelScope.launch {
+            try {
+                dao.insertar(nuevo)
+            } catch (e: SQLiteConstraintException) {
+                // RUT duplicado: ya se valida arriba; el índice único es la última barrera.
+            }
+        }
         limpiarFormularioNuevo()
         return true
     }
