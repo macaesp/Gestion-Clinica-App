@@ -1,4 +1,5 @@
 package com.example.gestionclinica.ui.screens
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,15 +52,21 @@ fun ListaDocumentosScreen(
     onDocumentoClick: (Documento) -> Unit,
     onVolver: (() -> Unit)? = null,
     funcionarioFiltroId: Int? = null,
+    soloFuncionarioId: Int? = null,
     onRegistrar: (() -> Unit)? = null
 ) {
     var filtro by remember { mutableStateOf("Todos") }
 
-    val base = if (funcionarioFiltroId != null) {
-        viewModel.obtenerDocumentosPorFuncionario(funcionarioFiltroId)
+    // Si llega soloFuncionarioId, limita los resultados a ese funcionario.
+    // funcionarioFiltroId se conserva para la pantalla de expediente usada por otros roles.
+    val idFuncionarioFiltro = soloFuncionarioId ?: funcionarioFiltroId
+
+    val base = if (idFuncionarioFiltro != null) {
+        viewModel.obtenerDocumentosPorFuncionario(idFuncionarioFiltro)
     } else {
         viewModel.documentos.toList()
     }
+
     val documentosMostrados = if (filtro == "Todos") {
         base
     } else {
@@ -69,12 +76,11 @@ fun ListaDocumentosScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             ScreenHeader(
-                title = if (funcionarioFiltroId != null) "Documentos del funcionario" else "Documentos",
+                title = if (idFuncionarioFiltro != null) "Mis documentos" else "Documentos",
                 subtitle = "${base.size} registrado(s)",
                 onBack = onVolver
             )
 
-            // Filtros por categoría
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -104,7 +110,12 @@ fun ListaDocumentosScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 96.dp),
+                    contentPadding = PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 12.dp,
+                        bottom = 96.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(items = documentosMostrados, key = { it.id }) { documento ->
@@ -144,12 +155,14 @@ fun DocumentoCard(documento: Documento, onClick: () -> Unit) {
         ) {
             IconBadge(icon = documento.clasificacion.icono())
             Spacer(modifier = Modifier.width(14.dp))
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "$categoria · #${documento.id}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+
                 if (resumen != null) {
                     Text(
                         text = resumen,
@@ -157,13 +170,16 @@ fun DocumentoCard(documento: Documento, onClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
+
                 Text(
                     text = "Funcionario #${documento.funcionarioId} · ${documento.fechaCarga}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
             StatusChip(text = documento.estado)
+
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,

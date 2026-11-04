@@ -23,6 +23,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.gestionclinica.ui.components.esFuncionario
+import com.example.gestionclinica.ui.components.puedeGestionarFuncionarios
 import com.example.gestionclinica.ui.components.puedeRegistrarDocumentos
 import com.example.gestionclinica.ui.components.puedeVerAuditoria
 import com.example.gestionclinica.ui.screens.*
@@ -30,7 +32,6 @@ import com.example.gestionclinica.viewmodel.AuthViewModel
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
 import com.example.gestionclinica.viewmodel.FuncionarioViewModel
 import com.example.gestionclinica.viewmodel.TrazabilidadViewModel
-import com.example.gestionclinica.ui.components.puedeGestionarFuncionarios
 
 private data class DestinoInferior(
     val ruta: String,
@@ -48,12 +49,23 @@ fun AppNavigation(
     val trazabilidadViewModel: TrazabilidadViewModel = viewModel()
 
     val rol = authViewModel.usuarioActual?.rol
+    val esFuncionario = rol.esFuncionario()
+    val funcionarioIdPermitido =
+        if (esFuncionario) authViewModel.funcionarioActualId else null
 
-    // Destinos de la barra inferior (la auditoría solo aparece según el rol)
+    LaunchedEffect(esFuncionario, funcionarioIdPermitido) {
+        viewModel.restringirAFuncionario(funcionarioIdPermitido)
+    }
+
     val destinos = buildList {
         add(DestinoInferior("home", "Inicio", Icons.Default.Home))
-        add(DestinoInferior("funcionarios", "Funcionarios", Icons.Default.People))
+
+        if (!esFuncionario) {
+            add(DestinoInferior("funcionarios", "Funcionarios", Icons.Default.People))
+        }
+
         add(DestinoInferior("documentos", "Documentos", Icons.Default.Folder))
+
         if (rol.puedeVerAuditoria()) {
             add(DestinoInferior("trazabilidad", "Auditoría", Icons.Default.Security))
         }
@@ -61,7 +73,8 @@ fun AppNavigation(
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val rutaActual = backStackEntry?.destination?.route
-    val mostrarBarraInferior = rutaActual != null && destinos.any { it.ruta == rutaActual }
+    val mostrarBarraInferior =
+        rutaActual != null && destinos.any { it.ruta == rutaActual }
 
     fun irADestinoPrincipal(ruta: String) {
         navController.navigate(ruta) {
@@ -87,11 +100,16 @@ fun AppNavigation(
                         NavigationBarItem(
                             selected = rutaActual == destino.ruta,
                             onClick = { irADestinoPrincipal(destino.ruta) },
-                            icon = { Icon(destino.icono, contentDescription = null) },
-                            label = { Text(destino.etiqueta) },
+                            icon = {
+                                Icon(destino.icono, contentDescription = null)
+                            },
+                            label = {
+                                Text(destino.etiqueta)
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedIconColor =
+                                    MaterialTheme.colorScheme.onPrimaryContainer,
                                 selectedTextColor = MaterialTheme.colorScheme.primary
                             )
                         )
@@ -109,90 +127,148 @@ fun AppNavigation(
                 LoginScreen(
                     authViewModel = authViewModel,
                     onLoginSuccess = {
-                        navController.navigate("home") { popUpTo("login") { inclusive = true } }
+                        navController.navigate("home") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     }
                 )
             }
+
             composable("home") {
                 HomeScreen(
                     authViewModel = authViewModel,
-                    onVerFuncionarios = { irADestinoPrincipal("funcionarios") },
-                    onRegistrarDocumento = { irARegistro() },
-                    onVerDocumentos = { irADestinoPrincipal("documentos") },
-                    onVerTrazabilidad = { irADestinoPrincipal("trazabilidad") },
-                    onLogout = { navController.navigate("login") { popUpTo(0) } },
-                    totalDocumentos = viewModel.documentos.size,
-                    documentosPendientes = viewModel.documentos.count { it.estado == "Pendiente" }
-                )
-            }
-            composable("funcionarios") {
-                FuncionariosScreen(
-                    viewModel = funcionarioViewModel,
-                    onFuncionarioClick = { funcionario ->
-                        funcionarioViewModel.seleccionarFuncionario(funcionario)
-                        navController.navigate("expediente")
+                    onVerFuncionarios = {
+                        irADestinoPrincipal("funcionarios")
                     },
-                    onAgregar = if (rol.puedeGestionarFuncionarios()) {
-                        {
-                            funcionarioViewModel.limpiarFormularioNuevo()
-                            navController.navigate("nuevoFuncionario")
-                        }
-                    } else null
-                )
-            }
-            composable("nuevoFuncionario") {
-                RegistroFuncionarioScreen(
-                    viewModel = funcionarioViewModel,
-                    onGuardado = { navController.popBackStack() },
-                    onVolver = { navController.popBackStack() }
-                )
-            }
-            composable("expediente") {
-                ExpedienteScreen(
-                    viewModel = funcionarioViewModel,
-                    onVerDocumentos = { navController.navigate("documentosFuncionario") },
                     onRegistrarDocumento = {
-                        val id = funcionarioViewModel.funcionarioSeleccionado?.id
-                        if (id != null) { viewModel.prepararRegistroParaFuncionario(id) }
-                        navController.navigate("registro")
+                        irARegistro()
                     },
-                    onVolver = { navController.popBackStack() }
-                )
-            }
-            composable("documentosFuncionario") {
-                ListaDocumentosScreen(
-                    viewModel = viewModel,
-                    funcionarioFiltroId = funcionarioViewModel.funcionarioSeleccionado?.id,
-                    onDocumentoClick = { documento ->
-                        viewModel.seleccionarDocumento(documento)
-                        navController.navigate("detalle")
+                    onVerDocumentos = {
+                        irADestinoPrincipal("documentos")
                     },
-                    onVolver = { navController.popBackStack() }
-                )
-            }
-            composable("registro") {
-                RegistroDocumentoScreen(
-                    viewModel = viewModel,
-                    onDocumentoGuardado = {
-                        // Registramos la creación en la trazabilidad
-                        val idUsuario = authViewModel.usuarioActual?.id ?: 0
-                        val docNuevo = viewModel.documentoSeleccionado
-                        if (docNuevo != null) {
-                            trazabilidadViewModel.registrarAccion(
-                                documentoId = docNuevo.id,
-                                usuarioId = idUsuario,
-                                accion = "CREACIÓN",
-                                detalles = "Documento creado tipo: ${docNuevo.clasificacion::class.simpleName}"
-                            )
+                    onVerTrazabilidad = {
+                        irADestinoPrincipal("trazabilidad")
+                    },
+                    onLogout = {
+                        navController.navigate("login") {
+                            popUpTo(0)
                         }
-                        // Reemplaza el formulario por el detalle (al volver no reaparece el formulario)
-                        navController.navigate("detalle") { popUpTo("registro") { inclusive = true } }
                     },
-                    onVolver = { navController.popBackStack() }
+                    totalDocumentos =
+                        viewModel.documentosVisibles(funcionarioIdPermitido).size,
+                    documentosPendientes =
+                        viewModel.documentosVisibles(funcionarioIdPermitido)
+                            .count { it.estado == "Pendiente" },
+                    esFuncionario = esFuncionario
                 )
             }
+
+            composable("funcionarios") {
+                if (esFuncionario) {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = false }
+                    }
+                } else {
+                    FuncionariosScreen(
+                        viewModel = funcionarioViewModel,
+                        onFuncionarioClick = { funcionario ->
+                            funcionarioViewModel.seleccionarFuncionario(funcionario)
+                            navController.navigate("expediente")
+                        },
+                        onAgregar = if (rol.puedeGestionarFuncionarios()) {
+                            {
+                                funcionarioViewModel.limpiarFormularioNuevo()
+                                navController.navigate("nuevoFuncionario")
+                            }
+                        } else {
+                            null
+                        }
+                    )
+                }
+            }
+
+            composable("nuevoFuncionario") {
+                if (rol.puedeGestionarFuncionarios()) {
+                    RegistroFuncionarioScreen(
+                        viewModel = funcionarioViewModel,
+                        onGuardado = { navController.popBackStack() },
+                        onVolver = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable("expediente") {
+                if (!esFuncionario) {
+                    ExpedienteScreen(
+                        viewModel = funcionarioViewModel,
+                        onVerDocumentos = {
+                            navController.navigate("documentosFuncionario")
+                        },
+                        onRegistrarDocumento = {
+                            val id = funcionarioViewModel.funcionarioSeleccionado?.id
+                            if (id != null) {
+                                viewModel.prepararRegistroParaFuncionario(id)
+                            }
+                            navController.navigate("registro")
+                        },
+                        onVolver = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable("documentosFuncionario") {
+                if (!esFuncionario) {
+                    ListaDocumentosScreen(
+                        viewModel = viewModel,
+                        funcionarioFiltroId =
+                            funcionarioViewModel.funcionarioSeleccionado?.id,
+                        onDocumentoClick = { documento ->
+                            if (
+                                !esFuncionario ||
+                                documento.funcionarioId == funcionarioIdPermitido
+                            ) {
+                                viewModel.seleccionarDocumento(documento)
+                                navController.navigate("detalle")
+                            }
+                        },
+                        onVolver = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable("registro") {
+                if (rol.puedeRegistrarDocumentos()) {
+                    RegistroDocumentoScreen(
+                        viewModel = viewModel,
+                        onDocumentoGuardado = {
+                            val idUsuario =
+                                authViewModel.usuarioActual?.id ?: 0
+                            val docNuevo = viewModel.documentoSeleccionado
+
+                            if (docNuevo != null) {
+                                trazabilidadViewModel.registrarAccion(
+                                    documentoId = docNuevo.id,
+                                    usuarioId = idUsuario,
+                                    accion = "CREACIÓN",
+                                    detalles =
+                                        "Documento creado tipo: ${docNuevo.clasificacion::class.simpleName}"
+                                )
+                            }
+
+                            navController.navigate("detalle") {
+                                popUpTo("registro") { inclusive = true }
+                            }
+                        },
+                        onVolver = { navController.popBackStack() }
+                    )
+                } else {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = false }
+                    }
+                }
+            }
+
             composable("detalle") {
-                // Registramos la consulta (lectura) una sola vez al abrir el documento
                 val docActual = viewModel.documentoSeleccionado
                 val idUsuario = authViewModel.usuarioActual?.id ?: 0
 
@@ -207,23 +283,54 @@ fun AppNavigation(
                     }
                 }
 
-                DetalleDocumentoScreen(
-                    viewModel = viewModel,
-                    onVolver = { navController.popBackStack() }
-                )
+                val documentoPermitido =
+                    docActual != null &&
+                            (!esFuncionario ||
+                                    docActual.funcionarioId == funcionarioIdPermitido)
+
+                if (documentoPermitido) {
+                    DetalleDocumentoScreen(
+                        viewModel = viewModel,
+                        onVolver = { navController.popBackStack() }
+                    )
+                } else {
+                    navController.navigate("documentos") {
+                        popUpTo("home")
+                    }
+                }
             }
+
             composable("documentos") {
                 ListaDocumentosScreen(
                     viewModel = viewModel,
                     onDocumentoClick = { documento ->
-                        viewModel.seleccionarDocumento(documento)
-                        navController.navigate("detalle")
+                        if (
+                            !esFuncionario ||
+                            documento.funcionarioId == funcionarioIdPermitido
+                        ) {
+                            viewModel.seleccionarDocumento(documento)
+                            navController.navigate("detalle")
+                        }
                     },
-                    onRegistrar = if (rol.puedeRegistrarDocumentos()) { { irARegistro() } } else null
+                    soloFuncionarioId = funcionarioIdPermitido,
+                    onRegistrar = if (rol.puedeRegistrarDocumentos()) {
+                        { irARegistro() }
+                    } else {
+                        null
+                    }
                 )
             }
+
             composable("trazabilidad") {
-                TrazabilidadScreen(trazabilidadViewModel = trazabilidadViewModel)
+                if (rol.puedeVerAuditoria()) {
+                    TrazabilidadScreen(
+                        trazabilidadViewModel = trazabilidadViewModel
+                    )
+                } else {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = false }
+                    }
+                }
             }
         }
     }

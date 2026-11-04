@@ -1,5 +1,4 @@
 package com.example.gestionclinica.viewmodel
-
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +17,7 @@ import kotlinx.coroutines.withContext
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dao = AppDatabase.getInstance(application).usuarioDao()
+    private val funcionarioDao = AppDatabase.getInstance(application).funcionarioDao()
 
     var rut by mutableStateOf("")
         private set
@@ -31,7 +31,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     var usuarioActual by mutableStateOf<Usuario?>(null)
         private set
 
-    // true mientras se verifica la contraseña (evita doble toque en "Ingresar")
+    // ID del expediente vinculado al usuario con rol FUNCIONARIO.
+    var funcionarioActualId by mutableStateOf<Int?>(null)
+        private set
+
     var cargando by mutableStateOf(false)
         private set
 
@@ -45,24 +48,26 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         errorLogin = null
     }
 
-    /**
-     * Verifica RUT y contraseña contra la BD. Si todo es correcto guarda el
-     * usuario actual y llama a [onExito].
-     */
     fun login(tipoAcceso: String, onExito: () -> Unit) {
         if (cargando) return
-        val rutBuscado = rut.replace(".", "").trim().uppercase()
+
+        val rutBuscado = normalizarRut(rut)
         val claveIngresada = password
 
         viewModelScope.launch {
             cargando = true
 
             val entidad = dao.buscarPorRut(rutBuscado)
+
             val credencialesOk = withContext(Dispatchers.Default) {
                 if (entidad != null) {
-                    PasswordHasher.verificar(claveIngresada, entidad.salt, entidad.passwordHash)
+                    PasswordHasher.verificar(
+                        claveIngresada,
+                        entidad.salt,
+                        entidad.passwordHash
+                    )
                 } else {
-                    // Misma carga de trabajo aunque el RUT no exista (no revela qué RUT existen)
+                    // Mantiene un tiempo de respuesta similar si el RUT no existe.
                     PasswordHasher.hash(claveIngresada, SAL_FALSA)
                     false
                 }
@@ -100,19 +105,42 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            // Cada funcionario se vincula a su expediente mediante el RUT.
+            val idFuncionario = if (usuario.rol == RolUsuario.FUNCIONARIO) {
+                funcionarioDao.buscarPorRutNormalizado(
+                    normalizarRut(usuario.rut)
+                )?.id
+            } else {
+                null
+            }
+
+            if (usuario.rol == RolUsuario.FUNCIONARIO && idFuncionario == null) {
+                usuarioActual = null
+                funcionarioActualId = null
+                errorLogin =
+                    "No existe un expediente asociado a este RUT. Contacta a Recursos Humanos."
+                return@launch
+            }
+
             usuarioActual = usuario
+            funcionarioActualId = idFuncionario
             errorLogin = null
             password = ""
+
             onExito()
         }
     }
 
     fun logout() {
         usuarioActual = null
+        funcionarioActualId = null
         rut = ""
         password = ""
         errorLogin = null
     }
+
+    private fun normalizarRut(valor: String): String =
+        valor.replace(".", "").trim().uppercase()
 
     private companion object {
         const val SAL_FALSA = "AAAAAAAAAAAAAAAAAAAAAA=="

@@ -1,4 +1,5 @@
 package com.example.gestionclinica.ui.screens
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -30,6 +31,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.ui.components.AppCard
 import com.example.gestionclinica.ui.components.IconBadge
+import com.example.gestionclinica.ui.components.esFuncionario
 import com.example.gestionclinica.ui.components.etiqueta
 import com.example.gestionclinica.ui.components.puedeRegistrarDocumentos
 import com.example.gestionclinica.ui.components.puedeVerAuditoria
@@ -51,19 +53,54 @@ fun HomeScreen(
     onVerTrazabilidad: () -> Unit,
     onLogout: () -> Unit,
     totalDocumentos: Int = 0,
-    documentosPendientes: Int = 0
+    documentosPendientes: Int = 0,
+    esFuncionario: Boolean = false
 ) {
     val usuario = authViewModel.usuarioActual
     val rol = usuario?.rol
+    val esFuncionarioActual = esFuncionario || rol.esFuncionario()
 
     val accesos = buildList {
-        add(Acceso("Funcionarios", "Consultar expedientes", Icons.Default.People, onVerFuncionarios))
-        add(Acceso("Documentos", "Ver documentación", Icons.Default.Folder, onVerDocumentos))
-        if (rol.puedeRegistrarDocumentos()) {
-            add(Acceso("Registrar", "Nuevo documento", Icons.Default.Add, onRegistrarDocumento))
+        if (!esFuncionarioActual) {
+            add(
+                Acceso(
+                    titulo = "Funcionarios",
+                    descripcion = "Consultar expedientes",
+                    icono = Icons.Default.People,
+                    onClick = onVerFuncionarios
+                )
+            )
         }
+
+        add(
+            Acceso(
+                titulo = if (esFuncionarioActual) "Mis documentos" else "Documentos",
+                descripcion = "Ver documentación",
+                icono = Icons.Default.Folder,
+                onClick = onVerDocumentos
+            )
+        )
+
+        if (rol.puedeRegistrarDocumentos()) {
+            add(
+                Acceso(
+                    titulo = "Registrar",
+                    descripcion = "Nuevo documento",
+                    icono = Icons.Default.Add,
+                    onClick = onRegistrarDocumento
+                )
+            )
+        }
+
         if (rol.puedeVerAuditoria()) {
-            add(Acceso("Auditoría", "Trazabilidad", Icons.Default.Security, onVerTrazabilidad))
+            add(
+                Acceso(
+                    titulo = "Auditoría",
+                    descripcion = "Trazabilidad",
+                    icono = Icons.Default.Security,
+                    onClick = onVerTrazabilidad
+                )
+            )
         }
     }
 
@@ -73,7 +110,6 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
     ) {
-        // Barra superior simple
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -86,14 +122,22 @@ fun HomeScreen(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            IconButton(onClick = { authViewModel.logout(); onLogout() }) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesión")
+
+            IconButton(
+                onClick = {
+                    authViewModel.logout()
+                    onLogout()
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = "Cerrar sesión"
+                )
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Tarjeta de bienvenida
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge,
@@ -103,12 +147,18 @@ fun HomeScreen(
             )
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text(text = "Bienvenido/a", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = "Bienvenido/a",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
                 Text(
                     text = usuario?.nombre ?: "",
                     style = MaterialTheme.typography.headlineSmall
                 )
+
                 Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
                     text = rol?.etiqueta() ?: "",
                     style = MaterialTheme.typography.labelLarge
@@ -118,7 +168,6 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Resumen
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -127,11 +176,16 @@ fun HomeScreen(
         ) {
             ResumenCard(
                 valor = totalDocumentos.toString(),
-                etiqueta = "Documentos registrados",
+                etiqueta = if (esFuncionarioActual) {
+                    "Mis documentos"
+                } else {
+                    "Documentos registrados"
+                },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
             )
+
             ResumenCard(
                 valor = documentosPendientes.toString(),
                 etiqueta = "Pendientes",
@@ -142,14 +196,15 @@ fun HomeScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
         Text(
             text = "Accesos rápidos",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground
         )
+
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Cuadrícula de 2 columnas
         accesos.chunked(2).forEach { fila ->
             Row(
                 modifier = Modifier
@@ -165,16 +220,25 @@ fun HomeScreen(
                             .fillMaxHeight()
                     )
                 }
-                if (fila.size == 1) Spacer(modifier = Modifier.weight(1f))
+
+                if (fila.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
+
             Spacer(modifier = Modifier.height(12.dp))
         }
+
         Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
 @Composable
-private fun ResumenCard(valor: String, etiqueta: String, modifier: Modifier = Modifier) {
+private fun ResumenCard(
+    valor: String,
+    etiqueta: String,
+    modifier: Modifier = Modifier
+) {
     AppCard(modifier = modifier) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -182,6 +246,7 @@ private fun ResumenCard(valor: String, etiqueta: String, modifier: Modifier = Mo
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary
             )
+
             Text(
                 text = etiqueta,
                 style = MaterialTheme.typography.bodySmall,
@@ -192,16 +257,25 @@ private fun ResumenCard(valor: String, etiqueta: String, modifier: Modifier = Mo
 }
 
 @Composable
-private fun AccesoTile(acceso: Acceso, modifier: Modifier = Modifier) {
-    AppCard(modifier = modifier, onClick = acceso.onClick) {
+private fun AccesoTile(
+    acceso: Acceso,
+    modifier: Modifier = Modifier
+) {
+    AppCard(
+        modifier = modifier,
+        onClick = acceso.onClick
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             IconBadge(icon = acceso.icono)
+
             Spacer(modifier = Modifier.height(12.dp))
+
             Text(
                 text = acceso.titulo,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
+
             Text(
                 text = acceso.descripcion,
                 style = MaterialTheme.typography.bodySmall,

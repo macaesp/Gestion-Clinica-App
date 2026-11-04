@@ -80,6 +80,12 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
     val documentos = mutableStateListOf<Documento>()
     var documentoSeleccionado by mutableStateOf<Documento?>(null)
         private set
+    var funcionarioPermitidoId by mutableStateOf<Int?>(null)
+        private set
+
+    fun restringirAFuncionario(id: Int?) {
+        funcionarioPermitidoId = id
+    }
 
     init {
         viewModelScope.launch {
@@ -122,12 +128,21 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun seleccionarDocumento(documento: Documento) {
+        val idPermitido = funcionarioPermitidoId
+        if (idPermitido != null && documento.funcionarioId != idPermitido) return
+
         documentoSeleccionado = documento
     }
 
-    fun obtenerDocumentosPorFuncionario(idFuncionario: Int): List<Documento> {
-        return documentos.filter { it.funcionarioId == idFuncionario }
-    }
+    fun obtenerDocumentosPorFuncionario(idFuncionario: Int): List<Documento> =
+        documentos.filter { it.funcionarioId == idFuncionario }
+
+    fun documentosVisibles(funcionarioIdPermitido: Int?): List<Documento> =
+        if (funcionarioIdPermitido == null) {
+            documentos.toList()
+        } else {
+            obtenerDocumentosPorFuncionario(funcionarioIdPermitido)
+        }
 
     fun prepararRegistroParaFuncionario(idFuncionario: Int) {
         limpiarFormulario()
@@ -181,7 +196,7 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
             pdfEscaneado = pdfEscaneado
         )
 
-        // Se guarda en Room; la lista "documentos" se refresca sola al terminar.
+        // ROOM: la lista de los documentos se guardan aca
         viewModelScope.launch { dao.insertar(nuevoDocumento.toEntity()) }
         documentoSeleccionado = nuevoDocumento
         return true

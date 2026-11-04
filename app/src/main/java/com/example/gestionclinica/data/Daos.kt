@@ -12,6 +12,8 @@ interface FuncionarioDao {
     @Query("SELECT * FROM funcionarios ORDER BY nombre COLLATE NOCASE")
     fun observarTodos(): Flow<List<Funcionario>>
 
+    @Query("SELECT * FROM funcionarios WHERE REPLACE(UPPER(rut), '.', '') = :rutNormalizado LIMIT 1")
+    suspend fun buscarPorRutNormalizado(rutNormalizado: String): Funcionario?
     @Insert
     suspend fun insertar(funcionario: Funcionario): Long
 }

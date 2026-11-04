@@ -18,7 +18,7 @@ import com.example.gestionclinica.model.RolUsuario
         RegistroTrazabilidad::class,
         UsuarioEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -39,7 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gestion_clinica.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .addCallback(datosIniciales)
                     .build()
                     .also { instancia = it }
@@ -66,7 +66,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // Datos de prueba: solo se insertan cuando la BD se crea por primera vez.
+        // v2 -> v3: agrega el expediente de prueba vinculado al usuario FUNCIONARIO.
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                insertarFuncionarioDemo(db)
+            }
+        }
+
+        // Datos de prueba
         private val datosIniciales = object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -81,13 +88,26 @@ abstract class AppDatabase : RoomDatabase() {
                      'Contrata', '2018-06-15', 'Vigente', 'Activo')
                     """.trimIndent()
                 )
+                insertarFuncionarioDemo(db)
                 sembrarUsuarios(db)
             }
         }
 
-        // Contraseña de las cuentas de demostración. Cambiarla antes de usar datos reales.
+        private fun insertarFuncionarioDemo(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "INSERT OR IGNORE INTO funcionarios " +
+                    "(rut, nombre, centroSalud, cargo, profesion, tipoContrato, " +
+                    "fechaIngreso, situacionContractual, estado) " +
+                    "VALUES ('11111111-1', 'Usuario Ejemplo', 'CESFAM de prueba', " +
+                    "'Funcionario de prueba', 'Administración', 'Contrata', " +
+                    "'2026-01-01', 'Vigente', 'Activo')"
+            )
+        }
+
+        // Contraseña de las cuentas ejemplo
         private const val PASSWORD_DEMO = "Demo2026!"
 
+        // cuentas para entrar a la app
         private val usuariosDemo = listOf(
             Triple("Macarena Espinoza S", "12345678-5", RolUsuario.ADMINISTRADOR_SISTEMA),
             Triple("Benjamin Gonzales", "22222222-2", RolUsuario.RECURSOS_HUMANOS),

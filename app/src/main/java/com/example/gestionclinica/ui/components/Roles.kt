@@ -21,3 +21,7 @@ fun RolUsuario.etiqueta(): String = when (this) {
 
 fun RolUsuario?.puedeGestionarFuncionarios(): Boolean =
     this == RolUsuario.RECURSOS_HUMANOS || this == RolUsuario.ADMINISTRADOR_SISTEMA
+
+fun RolUsuario?.esFuncionario(): Boolean =
+    this == RolUsuario.FUNCIONARIO
+
