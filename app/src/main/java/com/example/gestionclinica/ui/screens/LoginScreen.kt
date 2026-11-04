@@ -135,20 +135,21 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             Button(
-                onClick = { if (authViewModel.login(tipoAcceso)) onLoginSuccess() },
+                onClick = { authViewModel.login(tipoAcceso, onLoginSuccess) },
+                enabled = !authViewModel.cargando,
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
             ) {
-                Text("Ingresar al sistema", style = MaterialTheme.typography.labelLarge)
+                Text(if (authViewModel.cargando) "Verificando..." else "Ingresar al sistema", style = MaterialTheme.typography.labelLarge)
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
         // Ayuda solo para la etapa de pruebas: bórrala cuando haya login real.
         Text(
-            text = "Modo demostración · RUT 11-1 · contraseña 123",
+            text = "Modo demostración · RUT 11111111-1 · contraseña Demo2026!",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

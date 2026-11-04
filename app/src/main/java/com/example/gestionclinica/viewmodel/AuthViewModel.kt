@@ -1,11 +1,23 @@
 package com.example.gestionclinica.viewmodel
+
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.gestionclinica.data.AppDatabase
+import com.example.gestionclinica.data.PasswordHasher
+import com.example.gestionclinica.data.toModel
 import com.example.gestionclinica.model.RolUsuario
 import com.example.gestionclinica.model.Usuario
-class AuthViewModel : ViewModel() {
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val dao = AppDatabase.getInstance(application).usuarioDao()
 
     var rut by mutableStateOf("")
         private set
@@ -19,30 +31,9 @@ class AuthViewModel : ViewModel() {
     var usuarioActual by mutableStateOf<Usuario?>(null)
         private set
 
-    // Cuentas de prueba locales. La contraseña de todas es 123.
-    private val usuariosBd = listOf(
-        Usuario(
-            id = 1,
-            nombre = "Admin RRHH",
-            rut = "11-1",
-            rol = RolUsuario.RECURSOS_HUMANOS,
-            activo = true
-        ),
-        Usuario(
-            id = 2,
-            nombre = "Funcionario Básico",
-            rut = "22-2",
-            rol = RolUsuario.FUNCIONARIO,
-            activo = true
-        ),
-        Usuario(
-            id = 3,
-            nombre = "Jefe Médico",
-            rut = "33-3",
-            rol = RolUsuario.JEFATURA,
-            activo = true
-        )
-    )
+    // true mientras se verifica la contraseña (evita doble toque en "Ingresar")
+    var cargando by mutableStateOf(false)
+        private set
 
     fun cambiarRut(valor: String) {
         rut = valor
@@ -54,40 +45,66 @@ class AuthViewModel : ViewModel() {
         errorLogin = null
     }
 
-    fun login(tipoAcceso: String): Boolean {
-        val usuario = usuariosBd.find { it.rut == rut }
+    /**
+     * Verifica RUT y contraseña contra la BD. Si todo es correcto guarda el
+     * usuario actual y llama a [onExito].
+     */
+    fun login(tipoAcceso: String, onExito: () -> Unit) {
+        if (cargando) return
+        val rutBuscado = rut.replace(".", "").trim().uppercase()
+        val claveIngresada = password
 
-        if (usuario == null || password != "123") {
-            errorLogin = "RUT o contraseña incorrectos"
-            return false
+        viewModelScope.launch {
+            cargando = true
+
+            val entidad = dao.buscarPorRut(rutBuscado)
+            val credencialesOk = withContext(Dispatchers.Default) {
+                if (entidad != null) {
+                    PasswordHasher.verificar(claveIngresada, entidad.salt, entidad.passwordHash)
+                } else {
+                    // Misma carga de trabajo aunque el RUT no exista (no revela qué RUT existen)
+                    PasswordHasher.hash(claveIngresada, SAL_FALSA)
+                    false
+                }
+            }
+
+            cargando = false
+
+            if (entidad == null || !credencialesOk) {
+                errorLogin = "RUT o contraseña incorrectos"
+                return@launch
+            }
+
+            val usuario = entidad.toModel()
+
+            if (!usuario.activo) {
+                errorLogin = "Usuario inactivo"
+                return@launch
+            }
+
+            val esAdmin = usuario.rol in setOf(
+                RolUsuario.ADMINISTRADOR_SISTEMA,
+                RolUsuario.RECURSOS_HUMANOS,
+                RolUsuario.JEFATURA,
+                RolUsuario.TI_CIBERSEGURIDAD
+            )
+
+            val accesoCorrecto = when (tipoAcceso) {
+                "Admin" -> esAdmin
+                "Usuario" -> !esAdmin
+                else -> false
+            }
+
+            if (!accesoCorrecto) {
+                errorLogin = "La cuenta no corresponde al acceso seleccionado"
+                return@launch
+            }
+
+            usuarioActual = usuario
+            errorLogin = null
+            password = ""
+            onExito()
         }
-
-        if (!usuario.activo) {
-            errorLogin = "Usuario inactivo"
-            return false
-        }
-
-        val esAdmin = usuario.rol in setOf(
-            RolUsuario.ADMINISTRADOR_SISTEMA,
-            RolUsuario.RECURSOS_HUMANOS,
-            RolUsuario.JEFATURA,
-            RolUsuario.TI_CIBERSEGURIDAD
-        )
-
-        val accesoCorrecto = when (tipoAcceso) {
-            "Admin" -> esAdmin
-            "Usuario" -> !esAdmin
-            else -> false
-        }
-
-        if (!accesoCorrecto) {
-            errorLogin = "La cuenta no corresponde al acceso seleccionado"
-            return false
-        }
-
-        usuarioActual = usuario
-        errorLogin = null
-        return true
     }
 
     fun logout() {
@@ -95,5 +112,9 @@ class AuthViewModel : ViewModel() {
         rut = ""
         password = ""
         errorLogin = null
+    }
+
+    private companion object {
+        const val SAL_FALSA = "AAAAAAAAAAAAAAAAAAAAAA=="
     }
 }
