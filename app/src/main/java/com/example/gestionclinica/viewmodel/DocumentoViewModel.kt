@@ -47,6 +47,13 @@ class DocumentoViewModel : ViewModel() {
     var estadoValidacion by mutableStateOf("")
         private set
 
+    // DOCUMENTO ESCANEADO (rutas de archivo como texto)
+    val paginasEscaneadas = mutableStateListOf<String>()
+
+    var pdfEscaneado by mutableStateOf<String?>(null)
+        private set
+
+
     // ERRORES Y MENSAJES
     var errorTipo by mutableStateOf<String?>(null)
         private set
@@ -78,6 +85,16 @@ class DocumentoViewModel : ViewModel() {
     fun cambiarCantidadHoras(valor: String) { cantidadHoras = valor }
     fun cambiarEstadoValidacion(valor: String) { estadoValidacion = valor }
 
+    fun establecerEscaneo(paginas: List<String>, pdf: String?) {
+        paginasEscaneadas.clear()
+        paginasEscaneadas.addAll(paginas)
+        pdfEscaneado = pdf
+    }
+
+    fun quitarEscaneo() {
+        paginasEscaneadas.clear()
+        pdfEscaneado = null
+    }
     fun seleccionarDocumento(documento: Documento) {
         documentoSeleccionado = documento
     }
@@ -97,8 +114,8 @@ class DocumentoViewModel : ViewModel() {
         tipoSolicitud = ""; respaldo = ""; fechaInicio = ""; fechaFin = ""; estadoAprobacion = ""
         nombreCurso = ""; certificadoRespaldo = ""; cantidadHoras = ""; estadoValidacion = ""
         errorTipo = null; errorFuncionario = null; errorEstado = null; mensajeExito = null
+        quitarEscaneo()
     }
-
     @RequiresApi(Build.VERSION_CODES.O)
     fun guardarDocumento(usuarioLogueadoId: Int = 1): Boolean {
         if (tipo.isBlank()) { errorTipo = "Requerido"; return false }
@@ -129,7 +146,9 @@ class DocumentoViewModel : ViewModel() {
             usuarioCargaId = usuarioLogueadoId,
             fechaCarga = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
             estado = estado,
-            clasificacion = especificacion
+            clasificacion = especificacion,
+            paginasEscaneadas = paginasEscaneadas.toList(),
+            pdfEscaneado = pdfEscaneado
         )
 
         documentos.add(nuevoDocumento)

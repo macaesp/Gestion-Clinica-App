@@ -70,4 +70,6 @@ dependencies {
     )
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    implementation(libs.mlkit.document.scanner)
+    implementation(libs.coil.compose)
 }

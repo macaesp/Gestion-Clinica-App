@@ -30,5 +30,7 @@ data class Documento(
     val usuarioCargaId: Int,
     val fechaCarga: String,
     val estado: String,
-    val clasificacion: EspecificacionDocumento
+    val clasificacion: EspecificacionDocumento,
+    val paginasEscaneadas: List<String> = emptyList(),
+    val pdfEscaneado: String? = null
 )

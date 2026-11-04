@@ -1,12 +1,32 @@
 package com.example.gestionclinica.ui.screens
-
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.model.EspecificacionDocumento
+import com.example.gestionclinica.ui.components.EmptyState
+import com.example.gestionclinica.ui.components.IconBadge
+import com.example.gestionclinica.ui.components.InfoRow
+import com.example.gestionclinica.ui.components.MiniaturasPaginas
+import com.example.gestionclinica.ui.components.ScreenHeader
+import com.example.gestionclinica.ui.components.SectionCard
+import com.example.gestionclinica.ui.components.StatusChip
+import com.example.gestionclinica.ui.components.icono
+import com.example.gestionclinica.ui.components.nombreCategoria
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
 
 @Composable
@@ -16,61 +36,102 @@ fun DetalleDocumentoScreen(
 ) {
     val documento = viewModel.documentoSeleccionado
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text(text = "Detalle del Documento", style = MaterialTheme.typography.headlineSmall)
-        Spacer(modifier = Modifier.height(24.dp))
+    Column(modifier = Modifier.fillMaxSize()) {
+        ScreenHeader(
+            title = if (documento != null) "Documento #${documento.id}" else "Documento",
+            subtitle = "Detalle",
+            onBack = onVolver
+        )
 
-        if (documento != null) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(text = "Información General", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "ID Documento: ${documento.id}")
-                    Text(text = "ID Funcionario: ${documento.funcionarioId}")
-                    Text(text = "Estado General: ${documento.estado}")
-                    Text(text = "Fecha de carga: ${documento.fechaCarga}")
+        if (documento == null) {
+            EmptyState(
+                icon = Icons.Default.Description,
+                title = "Sin documento",
+                message = "No hay un documento seleccionado."
+            )
+            return@Column
+        }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Resumen principal
+            SectionCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconBadge(icon = documento.clasificacion.icono(), size = 52.dp)
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = documento.clasificacion.nombreCategoria(),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Cargado el ${documento.fechaCarga}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    StatusChip(text = documento.estado)
+                }
+            }
 
-                    Text(text = "Información Específica", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
+            if (documento.paginasEscaneadas.isNotEmpty()) {
+                SectionCard(title = "Documento escaneado") {
+                    MiniaturasPaginas(
+                        paginas = documento.paginasEscaneadas,
+                        ancho = 120.dp,
+                        alto = 160.dp
+                    )
+                    Text(
+                        text = "${documento.paginasEscaneadas.size} página(s)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
 
-                    // Mostrar datos dependiendo de la subclase
-                    when (val esp = documento.clasificacion) {
-                        is EspecificacionDocumento.Laboral -> {
-                            Text(text = "Categoría: Laboral")
-                            Text(text = "Subtipo: ${esp.subtipo}")
-                        }
-                        is EspecificacionDocumento.Permiso -> {
-                            Text(text = "Categoría: Permiso")
-                            Text(text = "Tipo Solicitud: ${esp.tipoSolicitud}")
-                            Text(text = "Periodo: ${esp.fechaInicio} a ${esp.fechaFin}")
-                            Text(text = "Aprobación: ${esp.estadoAprobacion}")
-                            Text(text = "Respaldo: ${esp.respaldo}")
-                        }
-                        is EspecificacionDocumento.Capacitacion -> {
-                            Text(text = "Categoría: Capacitación")
-                            Text(text = "Curso: ${esp.nombreCurso}")
-                            Text(text = "Duración: ${esp.cantidadHoras} horas")
-                            Text(text = "Validación: ${esp.estadoValidacion}")
-                            Text(text = "Certificado: ${esp.certificadoRespaldo}")
-                        }
-                        is EspecificacionDocumento.General -> {
-                            Text(text = "Categoría: General")
-                            Text(text = "No hay detalles específicos adicionales.")
-                        }
+            SectionCard(title = "Información general") {
+                InfoRow("ID documento", documento.id.toString())
+                InfoRow("ID funcionario", documento.funcionarioId.toString())
+                InfoRow("Estado general", documento.estado)
+                InfoRow("Fecha de carga", documento.fechaCarga)
+            }
+
+            SectionCard(title = "Información específica") {
+                when (val esp = documento.clasificacion) {
+                    is EspecificacionDocumento.Laboral -> {
+                        InfoRow("Subtipo", esp.subtipo)
+                    }
+                    is EspecificacionDocumento.Permiso -> {
+                        InfoRow("Tipo de solicitud", esp.tipoSolicitud)
+                        InfoRow("Periodo", "${esp.fechaInicio} a ${esp.fechaFin}")
+                        InfoRow("Aprobación", esp.estadoAprobacion)
+                        InfoRow("Respaldo", esp.respaldo)
+                    }
+                    is EspecificacionDocumento.Capacitacion -> {
+                        InfoRow("Curso", esp.nombreCurso)
+                        InfoRow("Duración", "${esp.cantidadHoras} horas")
+                        InfoRow("Validación", esp.estadoValidacion)
+                        InfoRow("Certificado", esp.certificadoRespaldo)
+                    }
+                    is EspecificacionDocumento.General -> {
+                        Text(
+                            text = "No hay detalles específicos adicionales.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
-        } else {
-            Text(text = "No hay un documento seleccionado.", style = MaterialTheme.typography.bodyLarge)
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onVolver, modifier = Modifier.fillMaxWidth()) {
-            Text("Volver")
         }
     }
 }

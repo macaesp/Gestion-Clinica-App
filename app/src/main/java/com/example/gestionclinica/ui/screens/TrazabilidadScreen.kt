@@ -1,51 +1,93 @@
 package com.example.gestionclinica.ui.screens
-
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.gestionclinica.ui.components.AppCard
+import com.example.gestionclinica.ui.components.EmptyState
+import com.example.gestionclinica.ui.components.IconBadge
+import com.example.gestionclinica.ui.components.ScreenHeader
 import com.example.gestionclinica.viewmodel.TrazabilidadViewModel
 
 @Composable
 fun TrazabilidadScreen(
     trazabilidadViewModel: TrazabilidadViewModel,
-    onVolver: () -> Unit
+    onVolver: (() -> Unit)? = null
 ) {
-    val registros = trazabilidadViewModel.historial.reversed() // Mostrar los más recientes primero
+    val registros = trazabilidadViewModel.historial.reversed() // más recientes primero
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onVolver) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-            }
-            Text(text = "Registro de Trazabilidad", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+    Column(modifier = Modifier.fillMaxSize()) {
+        ScreenHeader(
+            title = "Trazabilidad",
+            subtitle = "Acciones realizadas sobre los documentos",
+            onBack = onVolver
+        )
 
         if (registros.isEmpty()) {
-            Text("No hay acciones registradas en el sistema aún.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            EmptyState(
+                icon = Icons.Default.History,
+                title = "Sin actividad",
+                message = "Aún no hay acciones registradas en el sistema."
+            )
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 items(registros, key = { it.id }) { registro ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(text = registro.accionRealizada, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                Text(text = registro.fechaHora, style = MaterialTheme.typography.labelSmall)
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = "Documento ID: ${registro.documentoId} | Usuario ID: ${registro.usuarioId}", style = MaterialTheme.typography.bodySmall)
-                            if (registro.detalles != null) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(text = "Detalle: ${registro.detalles}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            IconBadge(
+                                icon = if (registro.accionRealizada.startsWith("CREA")) Icons.Default.Add else Icons.Default.Visibility
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = registro.accionRealizada,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Documento #${registro.documentoId} · Usuario #${registro.usuarioId}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (registro.detalles != null) {
+                                    Text(
+                                        text = registro.detalles,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    text = registro.fechaHora,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
                             }
                         }
                     }
