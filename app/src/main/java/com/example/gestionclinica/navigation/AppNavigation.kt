@@ -1,163 +1,230 @@
 package com.example.gestionclinica.navigation
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.gestionclinica.ui.screens.DetalleDocumentoScreen
-import com.example.gestionclinica.ui.screens.ExpedienteScreen
-import com.example.gestionclinica.ui.screens.FuncionariosScreen
-import com.example.gestionclinica.ui.screens.HomeScreen
-import com.example.gestionclinica.ui.screens.ListaDocumentosScreen
-import com.example.gestionclinica.ui.screens.RegistroDocumentoScreen
+import com.example.gestionclinica.ui.components.puedeRegistrarDocumentos
+import com.example.gestionclinica.ui.components.puedeVerAuditoria
+import com.example.gestionclinica.ui.screens.*
+import com.example.gestionclinica.viewmodel.AuthViewModel
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
 import com.example.gestionclinica.viewmodel.FuncionarioViewModel
+import com.example.gestionclinica.viewmodel.TrazabilidadViewModel
+import com.example.gestionclinica.ui.components.puedeGestionarFuncionarios
+
+private data class DestinoInferior(
+    val ruta: String,
+    val etiqueta: String,
+    val icono: ImageVector
+)
 
 @Composable
 fun AppNavigation(
     viewModel: DocumentoViewModel
 ) {
-
     val navController = rememberNavController()
-
     val funcionarioViewModel: FuncionarioViewModel = viewModel()
+    val authViewModel: AuthViewModel = viewModel()
+    val trazabilidadViewModel: TrazabilidadViewModel = viewModel()
 
-    NavHost(
-        navController = navController,
-        startDestination = "home"
-    ) {
+    val rol = authViewModel.usuarioActual?.rol
 
-        // HOME
-        composable("home") {
-
-            HomeScreen(
-                onVerFuncionarios = {
-                    navController.navigate("funcionarios")
-                },
-
-                onRegistrarDocumento = {
-                    navController.navigate("registro")
-                },
-
-                onVerDocumentos = {
-                    navController.navigate("documentos")
-                }
-            )
+    // Destinos de la barra inferior (la auditoría solo aparece según el rol)
+    val destinos = buildList {
+        add(DestinoInferior("home", "Inicio", Icons.Default.Home))
+        add(DestinoInferior("funcionarios", "Funcionarios", Icons.Default.People))
+        add(DestinoInferior("documentos", "Documentos", Icons.Default.Folder))
+        if (rol.puedeVerAuditoria()) {
+            add(DestinoInferior("trazabilidad", "Auditoría", Icons.Default.Security))
         }
+    }
 
-        // FUNCIONARIOS
-        composable("funcionarios") {
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val rutaActual = backStackEntry?.destination?.route
+    val mostrarBarraInferior = rutaActual != null && destinos.any { it.ruta == rutaActual }
 
-            FuncionariosScreen(
-                viewModel = funcionarioViewModel,
-
-                onFuncionarioClick = { funcionario ->
-
-                    // Guardamos el funcionario seleccionado
-                    funcionarioViewModel.seleccionarFuncionario(funcionario)
-
-                    // Abrimos su expediente
-                    navController.navigate("expediente")
-                },
-
-                onVolver = {
-                    navController.popBackStack()
-                }
-            )
+    fun irADestinoPrincipal(ruta: String) {
+        navController.navigate(ruta) {
+            popUpTo("home") { saveState = true }
+            launchSingleTop = true
+            restoreState = true
         }
+    }
 
-        // EXPEDIENTE DEL FUNCIONARIO
-        composable("expediente") {
+    fun irARegistro() {
+        viewModel.limpiarFormulario()
+        navController.navigate("registro")
+    }
 
-            ExpedienteScreen(
-                viewModel = funcionarioViewModel,
-
-                onVerDocumentos = {
-
-                    // Desde el expediente mostramos
-                    // solamente los documentos del funcionario.
-                    navController.navigate("documentosFuncionario")
-                },
-
-                onRegistrarDocumento = {
-                    navController.navigate("registro")
-                },
-
-                onVolver = {
-                    navController.popBackStack()
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            if (mostrarBarraInferior) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    destinos.forEach { destino ->
+                        NavigationBarItem(
+                            selected = rutaActual == destino.ruta,
+                            onClick = { irADestinoPrincipal(destino.ruta) },
+                            icon = { Icon(destino.icono, contentDescription = null) },
+                            label = { Text(destino.etiqueta) },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
                 }
-            )
+            }
         }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = "login",
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("login") {
+                LoginScreen(
+                    authViewModel = authViewModel,
+                    onLoginSuccess = {
+                        navController.navigate("home") { popUpTo("login") { inclusive = true } }
+                    }
+                )
+            }
+            composable("home") {
+                HomeScreen(
+                    authViewModel = authViewModel,
+                    onVerFuncionarios = { irADestinoPrincipal("funcionarios") },
+                    onRegistrarDocumento = { irARegistro() },
+                    onVerDocumentos = { irADestinoPrincipal("documentos") },
+                    onVerTrazabilidad = { irADestinoPrincipal("trazabilidad") },
+                    onLogout = { navController.navigate("login") { popUpTo(0) } },
+                    totalDocumentos = viewModel.documentos.size,
+                    documentosPendientes = viewModel.documentos.count { it.estado == "Pendiente" }
+                )
+            }
+            composable("funcionarios") {
+                FuncionariosScreen(
+                    viewModel = funcionarioViewModel,
+                    onFuncionarioClick = { funcionario ->
+                        funcionarioViewModel.seleccionarFuncionario(funcionario)
+                        navController.navigate("expediente")
+                    },
+                    onAgregar = if (rol.puedeGestionarFuncionarios()) {
+                        {
+                            funcionarioViewModel.limpiarFormularioNuevo()
+                            navController.navigate("nuevoFuncionario")
+                        }
+                    } else null
+                )
+            }
+            composable("nuevoFuncionario") {
+                RegistroFuncionarioScreen(
+                    viewModel = funcionarioViewModel,
+                    onGuardado = { navController.popBackStack() },
+                    onVolver = { navController.popBackStack() }
+                )
+            }
+            composable("expediente") {
+                ExpedienteScreen(
+                    viewModel = funcionarioViewModel,
+                    onVerDocumentos = { navController.navigate("documentosFuncionario") },
+                    onRegistrarDocumento = {
+                        val id = funcionarioViewModel.funcionarioSeleccionado?.id
+                        if (id != null) { viewModel.prepararRegistroParaFuncionario(id) }
+                        navController.navigate("registro")
+                    },
+                    onVolver = { navController.popBackStack() }
+                )
+            }
+            composable("documentosFuncionario") {
+                ListaDocumentosScreen(
+                    viewModel = viewModel,
+                    funcionarioFiltroId = funcionarioViewModel.funcionarioSeleccionado?.id,
+                    onDocumentoClick = { documento ->
+                        viewModel.seleccionarDocumento(documento)
+                        navController.navigate("detalle")
+                    },
+                    onVolver = { navController.popBackStack() }
+                )
+            }
+            composable("registro") {
+                RegistroDocumentoScreen(
+                    viewModel = viewModel,
+                    onDocumentoGuardado = {
+                        // Registramos la creación en la trazabilidad
+                        val idUsuario = authViewModel.usuarioActual?.id ?: 0
+                        val docNuevo = viewModel.documentoSeleccionado
+                        if (docNuevo != null) {
+                            trazabilidadViewModel.registrarAccion(
+                                documentoId = docNuevo.id,
+                                usuarioId = idUsuario,
+                                accion = "CREACIÓN",
+                                detalles = "Documento creado tipo: ${docNuevo.clasificacion::class.simpleName}"
+                            )
+                        }
+                        // Reemplaza el formulario por el detalle (al volver no reaparece el formulario)
+                        navController.navigate("detalle") { popUpTo("registro") { inclusive = true } }
+                    },
+                    onVolver = { navController.popBackStack() }
+                )
+            }
+            composable("detalle") {
+                // Registramos la consulta (lectura) una sola vez al abrir el documento
+                val docActual = viewModel.documentoSeleccionado
+                val idUsuario = authViewModel.usuarioActual?.id ?: 0
 
-        // DOCUMENTOS DEL FUNCIONARIO
-        composable("documentosFuncionario") {
-
-            val funcionarioSeleccionado =
-                funcionarioViewModel.funcionarioSeleccionado
-
-            ListaDocumentosScreen(
-                viewModel = viewModel,
-
-                // Filtramos usando el funcionario seleccionado
-                funcionarioFiltro = funcionarioSeleccionado?.nombre,
-
-                onDocumentoClick = { documento ->
-
-                    viewModel.seleccionarDocumento(documento)
-
-                    navController.navigate("detalle")
-                },
-
-                onVolver = {
-                    navController.popBackStack()
+                LaunchedEffect(docActual?.id) {
+                    if (docActual != null) {
+                        trazabilidadViewModel.registrarAccion(
+                            documentoId = docActual.id,
+                            usuarioId = idUsuario,
+                            accion = "CONSULTA",
+                            detalles = "Documento visualizado"
+                        )
+                    }
                 }
-            )
-        }
 
-        // REGISTRAR DOCUMENTO
-        composable("registro") {
-
-            RegistroDocumentoScreen(
-                viewModel = viewModel,
-
-                onDocumentoGuardado = {
-                    navController.navigate("detalle")
-                }
-            )
-        }
-
-        // DETALLE DEL DOCUMENTO
-        composable("detalle") {
-
-            DetalleDocumentoScreen(
-                viewModel = viewModel,
-
-                onVolver = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        // LISTA GENERAL DE DOCUMENTOS
-        composable("documentos") {
-
-            ListaDocumentosScreen(
-                viewModel = viewModel,
-
-                // No enviamos funcionarioFiltro.
-                // Por eso aquí aparecen TODOS.
-                onDocumentoClick = { documento ->
-
-                    viewModel.seleccionarDocumento(documento)
-
-                    navController.navigate("detalle")
-                },
-
-                onVolver = {
-                    navController.popBackStack()
-                }
-            )
+                DetalleDocumentoScreen(
+                    viewModel = viewModel,
+                    onVolver = { navController.popBackStack() }
+                )
+            }
+            composable("documentos") {
+                ListaDocumentosScreen(
+                    viewModel = viewModel,
+                    onDocumentoClick = { documento ->
+                        viewModel.seleccionarDocumento(documento)
+                        navController.navigate("detalle")
+                    },
+                    onRegistrar = if (rol.puedeRegistrarDocumentos()) { { irARegistro() } } else null
+                )
+            }
+            composable("trazabilidad") {
+                TrazabilidadScreen(trazabilidadViewModel = trazabilidadViewModel)
+            }
         }
     }
 }
