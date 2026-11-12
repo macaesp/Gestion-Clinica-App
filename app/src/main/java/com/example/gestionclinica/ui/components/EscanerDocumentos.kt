@@ -19,14 +19,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/**
- * Devuelve una función que abre el escáner de documentos de Google (ML Kit).
- * - No necesita permiso de cámara (lo gestiona Google Play services).
- * - Detecta bordes, recorta, mejora la imagen y permite varias páginas.
- *
- * onResultado recibe las rutas de las imágenes (JPEG) y del PDF, ya copiadas
- * al almacenamiento interno de la app.
- */
 @Composable
 fun rememberEscanerDocumento(
     onResultado: (paginas: List<String>, pdf: String?) -> Unit,

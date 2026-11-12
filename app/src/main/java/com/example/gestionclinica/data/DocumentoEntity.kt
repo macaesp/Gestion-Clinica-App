@@ -6,11 +6,7 @@ import androidx.room.PrimaryKey
 import com.example.gestionclinica.model.Documento
 import com.example.gestionclinica.model.EspecificacionDocumento
 
-/**
- * Tabla plana de documentos. La jerarquía sealed [EspecificacionDocumento]
- * se guarda en una columna [tipo] más las columnas propias de cada tipo
- * (nulas cuando no aplican).
- */
+
 @Entity(
     tableName = "documentos",
     indices = [Index("funcionarioId")]

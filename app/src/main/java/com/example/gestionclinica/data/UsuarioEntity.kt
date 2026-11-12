@@ -6,10 +6,7 @@ import androidx.room.PrimaryKey
 import com.example.gestionclinica.model.RolUsuario
 import com.example.gestionclinica.model.Usuario
 
-/**
- * Usuario del sistema tal como se guarda en la BD. La contraseña nunca se
- * guarda: solo su hash (PBKDF2) y la sal aleatoria de ese usuario.
- */
+
 @Entity(
     tableName = "usuarios",
     indices = [Index(value = ["rut"], unique = true)]
@@ -22,7 +19,8 @@ data class UsuarioEntity(
     val rol: String,
     val activo: Boolean,
     val passwordHash: String,
-    val salt: String
+    val salt: String,
+    val centroAsignado: String? = null
 )
 
 // El modelo que usa la UI no incluye hash ni sal.
@@ -31,5 +29,6 @@ fun UsuarioEntity.toModel(): Usuario = Usuario(
     nombre = nombre,
     rut = rut,
     rol = RolUsuario.valueOf(rol),
-    activo = activo
+    activo = activo,
+    centroAsignado = centroAsignado
 )

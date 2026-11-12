@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.ui.components.DropdownField
 import com.example.gestionclinica.ui.components.FormField
+import com.example.gestionclinica.ui.components.InfoRow
 import com.example.gestionclinica.ui.components.MiniaturasPaginas
 import com.example.gestionclinica.ui.components.ScreenHeader
 import com.example.gestionclinica.ui.components.SectionCard
@@ -44,9 +46,24 @@ private val estadosDocumento = listOf("Vigente", "Pendiente", "Vencido")
 @Composable
 fun RegistroDocumentoScreen(
     viewModel: DocumentoViewModel,
+    usuarioId: Int,
+    esFuncionario: Boolean = false,
+    funcionarioId: Int? = null,
     onDocumentoGuardado: () -> Unit,
+    onDocumentoModificado: (List<String>) -> Unit = {},
     onVolver: (() -> Unit)? = null
 ) {
+    val enEdicion = viewModel.documentoEnEdicion != null
+    LaunchedEffect(esFuncionario, enEdicion, funcionarioId) {
+        if (esFuncionario && !enEdicion && funcionarioId != null &&
+            viewModel.funcionarioId != funcionarioId
+        ) {
+            viewModel.cambiarFuncionario(funcionarioId)
+        }
+        if (esFuncionario && !enEdicion && viewModel.estado.isBlank()) {
+            viewModel.cambiarEstado("Pendiente")
+        }
+    }
     var errorEscaner by remember { mutableStateOf<String?>(null) }
     val escanear = rememberEscanerDocumento(
         onResultado = { paginas, pdf ->
@@ -62,8 +79,8 @@ fun RegistroDocumentoScreen(
             .imePadding()
     ) {
         ScreenHeader(
-            title = "Registrar documento",
-            subtitle = "Completa los datos del documento",
+            title = if (enEdicion) "Modificar documento" else "Registrar documento",
+            subtitle = if (enEdicion) "Actualiza los datos del documento" else "Completa los datos del documento",
             onBack = onVolver
         )
 
@@ -76,7 +93,12 @@ fun RegistroDocumentoScreen(
         ) {
             SectionCard(title = "Datos generales") {
                 Spacer(modifier = Modifier.height(4.dp))
-                FormField(
+                if (enEdicion) {
+                    InfoRow("Funcionario", "ID #${viewModel.funcionarioId ?: ""}")
+                    InfoRow("Categoría", viewModel.tipo)
+                } else if (esFuncionario) {
+                    InfoRow("Mi expediente", "ID #${funcionarioId ?: viewModel.funcionarioId ?: "—"}")
+                } else FormField(
                     value = viewModel.funcionarioId?.toString() ?: "",
                     onValueChange = { nuevo ->
                         val id = if (nuevo.isBlank()) null else nuevo.toIntOrNull()
@@ -87,7 +109,7 @@ fun RegistroDocumentoScreen(
                     error = viewModel.errorFuncionario
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                DropdownField(
+                if (!enEdicion) DropdownField(
                     value = viewModel.tipo,
                     label = "Categoría de documento",
                     options = tiposDocumento,
@@ -95,13 +117,15 @@ fun RegistroDocumentoScreen(
                     error = viewModel.errorTipo
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                DropdownField(
-                    value = viewModel.estado,
-                    label = "Estado general del documento",
-                    options = estadosDocumento,
-                    onSelect = viewModel::cambiarEstado,
-                    error = viewModel.errorEstado
-                )
+                if (!esFuncionario) {
+                    DropdownField(
+                        value = viewModel.estado,
+                        label = "Estado general del documento",
+                        options = estadosDocumento,
+                        onSelect = viewModel::cambiarEstado,
+                        error = viewModel.errorEstado
+                    )
+                }
             }
 
             SectionCard(title = "Documento escaneado") {
@@ -193,13 +217,20 @@ fun RegistroDocumentoScreen(
             }
 
             Button(
-                onClick = { if (viewModel.guardarDocumento()) onDocumentoGuardado() },
+                onClick = {
+                    if (enEdicion) {
+                        val cambios = viewModel.guardarCambios()
+                        if (cambios != null) onDocumentoModificado(cambios)
+                    } else if (viewModel.guardarDocumento(usuarioId)) {
+                        onDocumentoGuardado()
+                    }
+                },
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
             ) {
-                Text("Guardar documento")
+                Text(if (enEdicion) "Guardar cambios" else "Guardar documento")
             }
             Spacer(modifier = Modifier.height(8.dp))
         }

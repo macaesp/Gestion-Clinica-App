@@ -10,6 +10,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.gestionclinica.model.Funcionario
 import com.example.gestionclinica.model.RegistroTrazabilidad
 import com.example.gestionclinica.model.RolUsuario
+import com.example.gestionclinica.data.daos.DocumentoDao
+import com.example.gestionclinica.data.daos.FuncionarioDao
+import com.example.gestionclinica.data.daos.TrazabilidadDao
+import com.example.gestionclinica.data.daos.UsuarioDao
 
 @Database(
     entities = [
@@ -18,7 +22,7 @@ import com.example.gestionclinica.model.RolUsuario
         RegistroTrazabilidad::class,
         UsuarioEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -39,7 +43,13 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gestion_clinica.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_4
+                    )
                     .addCallback(datosIniciales)
                     .build()
                     .also { instancia = it }
@@ -70,6 +80,27 @@ abstract class AppDatabase : RoomDatabase() {
         private val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 insertarFuncionarioDemo(db)
+            }
+        }
+
+        // v3 -> v4: permite limitar cuentas de jefatura y administrativas a un centro.
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE usuarios ADD COLUMN centroAsignado TEXT")
+            }
+        }
+
+        // v4 -> v5 fue una prueba de RF12. Conserva el esquema actual de RF12,
+        // permitiendo que instalaciones con esa versión se actualicen sin perder datos.
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) = Unit
+        }
+
+        // Permite volver desde la prueba de RF12 a cuentas/permisos conservando
+        // funcionarios, documentos, cuentas y trazabilidad existentes.
+        private val MIGRATION_5_4 = object : Migration(5, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS solicitudes_cambio_documento")
             }
         }
 
@@ -110,8 +141,8 @@ abstract class AppDatabase : RoomDatabase() {
         // cuentas para entrar a la app
         private val usuariosDemo = listOf(
             Triple("Macarena Espinoza S", "12345678-5", RolUsuario.ADMINISTRADOR_SISTEMA),
-            Triple("Benjamin Gonzales", "22222222-2", RolUsuario.RECURSOS_HUMANOS),
-            Triple("Usuario Ejemplo", "11111111-1", RolUsuario.FUNCIONARIO)
+            Triple("Benjamin Gonzales", "12425879-1", RolUsuario.RECURSOS_HUMANOS),
+            Triple("Franchesco Ejistre", "126543167-2", RolUsuario.FUNCIONARIO)
         )
 
         private fun sembrarUsuarios(db: SupportSQLiteDatabase) {
@@ -119,7 +150,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val sal = PasswordHasher.nuevaSal()
                 val hash = PasswordHasher.hash(PASSWORD_DEMO, sal)
                 db.execSQL(
-                    "INSERT INTO usuarios (nombre, rut, rol, activo, passwordHash, salt) " +
+                    "INSERT OR IGNORE INTO usuarios (nombre, rut, rol, activo, passwordHash, salt) " +
                             "VALUES (?, ?, ?, 1, ?, ?)",
                     arrayOf<Any>(nombre, rut, rol.name, hash, sal)
                 )

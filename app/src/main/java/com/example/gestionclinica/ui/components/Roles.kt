@@ -4,7 +4,13 @@ import com.example.gestionclinica.model.RolUsuario
 fun RolUsuario?.puedeRegistrarDocumentos(): Boolean =
     this == RolUsuario.RECURSOS_HUMANOS ||
             this == RolUsuario.ADMINISTRADOR_SISTEMA ||
-            this == RolUsuario.JEFATURA
+            this == RolUsuario.JEFATURA ||
+            this == RolUsuario.FUNCIONARIO
+
+fun RolUsuario?.puedeModificarDocumentos(): Boolean =
+    this == RolUsuario.ADMINISTRATIVO ||
+            this == RolUsuario.RECURSOS_HUMANOS ||
+            this == RolUsuario.ADMINISTRADOR_SISTEMA
 
 fun RolUsuario?.puedeVerAuditoria(): Boolean =
     this == RolUsuario.ADMINISTRADOR_SISTEMA || this == RolUsuario.TI_CIBERSEGURIDAD

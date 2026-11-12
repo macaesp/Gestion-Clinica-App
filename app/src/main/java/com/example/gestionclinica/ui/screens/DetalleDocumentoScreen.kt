@@ -5,12 +5,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.model.EspecificacionDocumento
+import com.example.gestionclinica.model.RegistroTrazabilidad
 import com.example.gestionclinica.ui.components.EmptyState
 import com.example.gestionclinica.ui.components.IconBadge
 import com.example.gestionclinica.ui.components.InfoRow
@@ -32,7 +37,12 @@ import com.example.gestionclinica.viewmodel.DocumentoViewModel
 @Composable
 fun DetalleDocumentoScreen(
     viewModel: DocumentoViewModel,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    historial: List<RegistroTrazabilidad> = emptyList(),
+    nombreUsuario: (Int) -> String = { "Usuario #$it" },
+    mostrarHistorial: Boolean = true,
+    puedeModificar: Boolean = false,
+    onEditar: () -> Unit = {}
 ) {
     val documento = viewModel.documentoSeleccionado
 
@@ -83,6 +93,17 @@ fun DetalleDocumentoScreen(
                 }
             }
 
+            if (puedeModificar) {
+                OutlinedButton(
+                    onClick = onEditar,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Modificar documento")
+                }
+            }
+
             if (documento.paginasEscaneadas.isNotEmpty()) {
                 SectionCard(title = "Documento escaneado") {
                     MiniaturasPaginas(
@@ -129,6 +150,27 @@ fun DetalleDocumentoScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+            }
+
+            if (mostrarHistorial) {
+                SectionCard(title = "Historial del documento") {
+                    if (historial.isEmpty()) {
+                        Text("Sin movimientos registrados.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        historial.take(20).forEach { registro ->
+                            Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                                Text(
+                                    "${registro.accionRealizada} · ${nombreUsuario(registro.usuarioId)}",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                registro.detalles?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall)
+                                }
+                                Text(registro.fechaHora, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
                     }
                 }
             }

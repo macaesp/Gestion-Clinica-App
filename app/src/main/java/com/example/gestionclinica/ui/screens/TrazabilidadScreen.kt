@@ -71,7 +71,7 @@ fun TrazabilidadScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "Documento #${registro.documentoId} · Usuario #${registro.usuarioId}",
+                                    text = "Documento #${registro.documentoId} · ${trazabilidadViewModel.nombreUsuario(registro.usuarioId)}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )

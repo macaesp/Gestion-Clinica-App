@@ -10,6 +10,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gestionclinica.data.AppDatabase
 import com.example.gestionclinica.model.Funcionario
+import com.example.gestionclinica.model.Usuario
+import com.example.gestionclinica.security.PoliticaAcceso
 import kotlinx.coroutines.launch
 
 class FuncionarioViewModel(application: Application) : AndroidViewModel(application) {
@@ -26,6 +28,10 @@ class FuncionarioViewModel(application: Application) : AndroidViewModel(applicat
 
     // Espejo en memoria de la tabla "funcionarios"; se actualiza solo cuando cambia la BD.
     private val funcionarios = mutableStateListOf<Funcionario>()
+    private var usuarioAutorizado: Usuario? = null
+
+    val todosLosFuncionarios: List<Funcionario>
+        get() = funcionarios.toList()
 
     init {
         viewModelScope.launch {
@@ -40,21 +46,36 @@ class FuncionarioViewModel(application: Application) : AndroidViewModel(applicat
     val funcionariosFiltrados: List<Funcionario>
         get() {
             if (busqueda.isBlank()) {
-                return funcionarios.toList()
+                return funcionarios.filter {
+                    PoliticaAcceso.puedeVerExpediente(usuarioAutorizado, it)
+                }
             }
             return funcionarios.filter { funcionario ->
-                funcionario.nombre.contains(busqueda, ignoreCase = true) ||
+                PoliticaAcceso.puedeVerExpediente(usuarioAutorizado, funcionario) &&
+                        (funcionario.nombre.contains(busqueda, ignoreCase = true) ||
                         funcionario.rut.contains(busqueda, ignoreCase = true) ||
-                        funcionario.cargo.contains(busqueda, ignoreCase = true)
+                        funcionario.cargo.contains(busqueda, ignoreCase = true))
             }
         }
+
+    fun establecerUsuarioAutorizado(usuario: Usuario?) {
+        usuarioAutorizado = usuario
+        if (funcionarioSeleccionado?.let {
+                !PoliticaAcceso.puedeVerExpediente(usuario, it)
+            } == true
+        ) {
+            funcionarioSeleccionado = null
+        }
+    }
 
     fun cambiarBusqueda(valor: String) {
         busqueda = valor
     }
 
     fun seleccionarFuncionario(funcionario: Funcionario) {
-        funcionarioSeleccionado = funcionario
+        if (PoliticaAcceso.puedeVerExpediente(usuarioAutorizado, funcionario)) {
+            funcionarioSeleccionado = funcionario
+        }
     }
 
     fun limpiarBusqueda() {

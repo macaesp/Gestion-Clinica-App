@@ -49,7 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** Encabezado de pantalla: título, subtítulo opcional y flecha de volver opcional. */
+
 @Composable
 fun ScreenHeader(
     title: String,

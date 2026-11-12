@@ -15,5 +15,6 @@ data class Usuario(
     val nombre: String,
     val rut: String,
     val rol: RolUsuario,
-    val activo: Boolean
+    val activo: Boolean,
+    val centroAsignado: String? = null
 )

@@ -36,6 +36,9 @@ import com.example.gestionclinica.ui.components.etiqueta
 import com.example.gestionclinica.ui.components.puedeRegistrarDocumentos
 import com.example.gestionclinica.ui.components.puedeVerAuditoria
 import com.example.gestionclinica.viewmodel.AuthViewModel
+import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.AccountCircle
+import com.example.gestionclinica.model.RolUsuario
 
 private data class Acceso(
     val titulo: String,
@@ -52,15 +55,28 @@ fun HomeScreen(
     onVerDocumentos: () -> Unit,
     onVerTrazabilidad: () -> Unit,
     onLogout: () -> Unit,
+    onVerPerfil: () -> Unit,
     totalDocumentos: Int = 0,
     documentosPendientes: Int = 0,
-    esFuncionario: Boolean = false
+    esFuncionario: Boolean = false,
+    onAdministrarCuentas: () -> Unit
 ) {
     val usuario = authViewModel.usuarioActual
     val rol = usuario?.rol
     val esFuncionarioActual = esFuncionario || rol.esFuncionario()
 
     val accesos = buildList {
+        if (esFuncionarioActual) {
+            add(
+                Acceso(
+                    titulo = "Mi perfil",
+                    descripcion = "Mis datos y expediente",
+                    icono = Icons.Default.AccountCircle,
+                    onClick = onVerPerfil
+                )
+            )
+        }
+
         if (!esFuncionarioActual) {
             add(
                 Acceso(
@@ -102,6 +118,18 @@ fun HomeScreen(
                 )
             )
         }
+
+        if (rol == RolUsuario.RECURSOS_HUMANOS) {
+            add(
+                Acceso(
+                    titulo = "Cuentas",
+                    descripcion = "Crear y habilitar usuarios",
+                    icono = Icons.Default.ManageAccounts,
+                    onClick = onAdministrarCuentas
+                )
+            )
+        }
+
     }
 
     Column(

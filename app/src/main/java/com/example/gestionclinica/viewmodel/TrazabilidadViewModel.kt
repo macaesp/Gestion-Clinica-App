@@ -2,6 +2,7 @@ package com.example.gestionclinica.viewmodel
 
 import android.app.Application
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gestionclinica.data.AppDatabase
@@ -14,11 +15,17 @@ import java.util.Locale
 class TrazabilidadViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dao = AppDatabase.getInstance(application).trazabilidadDao()
+    private val usuarioDao = AppDatabase.getInstance(application).usuarioDao()
 
     // Este solo se actualiza cuando la BD cambie
     val historial = mutableStateListOf<RegistroTrazabilidad>()
+    private val nombresUsuarios = mutableStateMapOf<Int, String>()
 
     init {
+        viewModelScope.launch {
+            nombresUsuarios.clear()
+            nombresUsuarios.putAll(usuarioDao.listarTodos().associate { it.id to it.nombre })
+        }
         viewModelScope.launch {
             dao.observarTodos().collect { registros ->
                 historial.clear()
@@ -26,6 +33,8 @@ class TrazabilidadViewModel(application: Application) : AndroidViewModel(applica
             }
         }
     }
+
+    fun nombreUsuario(id: Int): String = nombresUsuarios[id] ?: "Usuario #$id"
 
     fun registrarAccion(
         documentoId: Int,

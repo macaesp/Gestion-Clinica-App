@@ -53,6 +53,7 @@ fun ListaDocumentosScreen(
     onVolver: (() -> Unit)? = null,
     funcionarioFiltroId: Int? = null,
     soloFuncionarioId: Int? = null,
+    documentosPermitidos: List<Documento>? = null,
     onRegistrar: (() -> Unit)? = null
 ) {
     var filtro by remember { mutableStateOf("Todos") }
@@ -61,10 +62,10 @@ fun ListaDocumentosScreen(
     // funcionarioFiltroId se conserva para la pantalla de expediente usada por otros roles.
     val idFuncionarioFiltro = soloFuncionarioId ?: funcionarioFiltroId
 
-    val base = if (idFuncionarioFiltro != null) {
+    val base = documentosPermitidos ?: if (idFuncionarioFiltro != null) {
         viewModel.obtenerDocumentosPorFuncionario(idFuncionarioFiltro)
     } else {
-        viewModel.documentos.toList()
+        viewModel.documentosVisibles(soloFuncionarioId)
     }
 
     val documentosMostrados = if (filtro == "Todos") {
