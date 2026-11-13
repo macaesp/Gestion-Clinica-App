@@ -3,7 +3,6 @@ import com.example.gestionclinica.model.RolUsuario
 
 fun RolUsuario?.puedeRegistrarDocumentos(): Boolean =
     this == RolUsuario.RECURSOS_HUMANOS ||
-            this == RolUsuario.ADMINISTRADOR_SISTEMA ||
             this == RolUsuario.JEFATURA ||
             this == RolUsuario.FUNCIONARIO
 
@@ -21,6 +20,9 @@ fun RolUsuario.etiqueta(): String = when (this) {
 }
 
 fun RolUsuario?.puedeGestionarFuncionarios(): Boolean =
+    this == RolUsuario.RECURSOS_HUMANOS
+
+fun RolUsuario?.puedeGestionarCuentas(): Boolean =
     this == RolUsuario.RECURSOS_HUMANOS || this == RolUsuario.ADMINISTRADOR_SISTEMA
 
 fun RolUsuario?.esFuncionario(): Boolean =

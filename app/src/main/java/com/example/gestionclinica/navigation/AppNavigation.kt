@@ -27,6 +27,7 @@ import com.example.gestionclinica.ui.components.esFuncionario
 import com.example.gestionclinica.ui.components.puedeGestionarFuncionarios
 import com.example.gestionclinica.ui.components.puedeRegistrarDocumentos
 import com.example.gestionclinica.ui.components.puedeVerAuditoria
+import com.example.gestionclinica.ui.components.puedeGestionarCuentas
 import com.example.gestionclinica.ui.screens.*
 import com.example.gestionclinica.viewmodel.AuthViewModel
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
@@ -75,11 +76,13 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
     val destinos = buildList {
         add(DestinoInferior("home", "Inicio", Icons.Default.Home))
 
-        if (!esFuncionario) {
+        if (!esFuncionario && rol != RolUsuario.ADMINISTRADOR_SISTEMA) {
             add(DestinoInferior("funcionarios", "Funcionarios", Icons.Default.People))
         }
 
-        add(DestinoInferior("documentos", "Documentos", Icons.Default.Folder))
+        if (rol != RolUsuario.ADMINISTRADOR_SISTEMA) {
+            add(DestinoInferior("documentos", "Documentos", Icons.Default.Folder))
+        }
 
         if (rol.puedeVerAuditoria()) {
             add(DestinoInferior("trazabilidad", "Auditoría", Icons.Default.Security))
@@ -170,7 +173,7 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
                         irADestinoPrincipal("trazabilidad")
                     },
                     onAdministrarCuentas = {
-                        if (rol == RolUsuario.RECURSOS_HUMANOS) {
+                        if (rol.puedeGestionarCuentas()) {
                             navController.navigate("gestionUsuarios")
                         }
                     },
@@ -191,7 +194,7 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
             }
 
             composable("gestionUsuarios") {
-                if (rol == RolUsuario.RECURSOS_HUMANOS) {
+                if (rol.puedeGestionarCuentas()) {
                     GestionUsuariosScreen(
                         authViewModel = authViewModel,
                         onVolver = { navController.popBackStack() }
@@ -250,7 +253,7 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
             }
 
             composable("funcionarios") {
-                if (esFuncionario) {
+                if (esFuncionario || rol == RolUsuario.ADMINISTRADOR_SISTEMA) {
                     navController.navigate("home") {
                         popUpTo("home") { inclusive = false }
                     }
@@ -280,6 +283,10 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
                         onGuardado = { navController.popBackStack() },
                         onVolver = { navController.popBackStack() }
                     )
+                } else {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = false }
+                    }
                 }
             }
 
@@ -307,7 +314,7 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
             }
 
             composable("documentosFuncionario") {
-                if (!esFuncionario) {
+                if (!esFuncionario && rol != RolUsuario.ADMINISTRADOR_SISTEMA) {
                     ListaDocumentosScreen(
                         viewModel = viewModel,
                         funcionarioFiltroId =
@@ -323,6 +330,10 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
                         },
                         onVolver = { navController.popBackStack() }
                     )
+                } else {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = false }
+                    }
                 }
             }
 
@@ -454,7 +465,11 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
             }
 
             composable("documentos") {
-                ListaDocumentosScreen(
+                if (rol == RolUsuario.ADMINISTRADOR_SISTEMA) {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = false }
+                    }
+                } else ListaDocumentosScreen(
                     viewModel = viewModel,
                     onDocumentoClick = { documento ->
                         if (puedeVerDocumento(documento)) {

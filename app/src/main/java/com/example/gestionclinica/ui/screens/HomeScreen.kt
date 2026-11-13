@@ -35,6 +35,7 @@ import com.example.gestionclinica.ui.components.esFuncionario
 import com.example.gestionclinica.ui.components.etiqueta
 import com.example.gestionclinica.ui.components.puedeRegistrarDocumentos
 import com.example.gestionclinica.ui.components.puedeVerAuditoria
+import com.example.gestionclinica.ui.components.puedeGestionarCuentas
 import com.example.gestionclinica.viewmodel.AuthViewModel
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.AccountCircle
@@ -97,7 +98,7 @@ fun HomeScreen(
             )
         }
 
-        if (!esFuncionarioActual) {
+        if (!esFuncionarioActual && rol != RolUsuario.ADMINISTRADOR_SISTEMA) {
             add(
                 Acceso(
                     titulo = "Funcionarios",
@@ -108,14 +109,16 @@ fun HomeScreen(
             )
         }
 
-        add(
-            Acceso(
-                titulo = if (esFuncionarioActual) "Mis documentos" else "Documentos",
-                descripcion = "Ver documentación",
-                icono = Icons.Default.Folder,
-                onClick = onVerDocumentos
+        if (rol != RolUsuario.ADMINISTRADOR_SISTEMA) {
+            add(
+                Acceso(
+                    titulo = if (esFuncionarioActual) "Mis documentos" else "Documentos",
+                    descripcion = "Ver documentación",
+                    icono = Icons.Default.Folder,
+                    onClick = onVerDocumentos
+                )
             )
-        )
+        }
 
         if (rol.puedeRegistrarDocumentos()) {
             add(
@@ -139,11 +142,11 @@ fun HomeScreen(
             )
         }
 
-        if (rol == RolUsuario.RECURSOS_HUMANOS) {
+        if (rol.puedeGestionarCuentas()) {
             add(
                 Acceso(
                     titulo = "Cuentas",
-                    descripcion = "Crear y habilitar usuarios",
+                    descripcion = "Administrar cuentas de usuario",
                     icono = Icons.Default.ManageAccounts,
                     onClick = onAdministrarCuentas
                 )
@@ -216,34 +219,36 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ResumenCard(
-                valor = totalDocumentos.toString(),
-                etiqueta = if (esFuncionarioActual) {
-                    "Mis documentos"
-                } else {
-                    "Documentos registrados"
-                },
+        if (rol != RolUsuario.ADMINISTRADOR_SISTEMA) {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            )
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ResumenCard(
+                    valor = totalDocumentos.toString(),
+                    etiqueta = if (esFuncionarioActual) {
+                        "Mis documentos"
+                    } else {
+                        "Documentos registrados"
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
 
-            ResumenCard(
-                valor = documentosPendientes.toString(),
-                etiqueta = "Pendientes",
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            )
+                ResumenCard(
+                    valor = documentosPendientes.toString(),
+                    etiqueta = "Pendientes",
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Accesos rápidos",
