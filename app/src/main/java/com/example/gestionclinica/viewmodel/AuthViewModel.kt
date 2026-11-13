@@ -12,6 +12,7 @@ import com.example.gestionclinica.data.UsuarioEntity
 import com.example.gestionclinica.data.toModel
 import com.example.gestionclinica.model.RolUsuario
 import com.example.gestionclinica.model.Usuario
+import com.example.gestionclinica.security.ValidacionCuenta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -180,20 +181,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val rutLimpio = normalizarRut(rut)
         val clave = claveInicial
 
-        if (nombreLimpio.isBlank() || rutLimpio.isBlank()) {
-            onResultado("Completa el nombre y el RUT.")
-            return
-        }
-
-        if (clave.length < 8) {
-            onResultado("La contraseña debe tener al menos 8 caracteres.")
-            return
-        }
-
-        if (rol in setOf(RolUsuario.JEFATURA, RolUsuario.ADMINISTRATIVO) &&
-            centroAsignado.isNullOrBlank()
-        ) {
-            onResultado("Asigna un centro de salud a este perfil.")
+        val errorValidacion = ValidacionCuenta.validar(
+            nombre = nombreLimpio,
+            rutNormalizado = rutLimpio,
+            claveInicial = clave,
+            rol = rol,
+            centroAsignado = centroAsignado
+        )
+        if (errorValidacion != null) {
+            onResultado(errorValidacion)
             return
         }
 

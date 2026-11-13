@@ -1,4 +1,13 @@
 package com.example.gestionclinica.ui.screens
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.pdf.PdfDocument
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,17 +21,26 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.example.gestionclinica.model.EspecificacionDocumento
 import com.example.gestionclinica.model.RegistroTrazabilidad
+import com.example.gestionclinica.data.toDocumento
 import com.example.gestionclinica.ui.components.EmptyState
 import com.example.gestionclinica.ui.components.IconBadge
 import com.example.gestionclinica.ui.components.InfoRow
@@ -32,7 +50,11 @@ import com.example.gestionclinica.ui.components.SectionCard
 import com.example.gestionclinica.ui.components.StatusChip
 import com.example.gestionclinica.ui.components.icono
 import com.example.gestionclinica.ui.components.nombreCategoria
+import com.example.gestionclinica.ui.components.resumen
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun DetalleDocumentoScreen(
@@ -41,10 +63,37 @@ fun DetalleDocumentoScreen(
     historial: List<RegistroTrazabilidad> = emptyList(),
     nombreUsuario: (Int) -> String = { "Usuario #$it" },
     mostrarHistorial: Boolean = true,
-    puedeModificar: Boolean = false,
+    puedeSolicitarCambio: Boolean = false,
+    etiquetaAccionEdicion: String = "Solicitar modificación",
     onEditar: () -> Unit = {}
 ) {
     val documento = viewModel.documentoSeleccionado
+    LaunchedEffect(documento?.id) {
+        documento?.id?.let(viewModel::cargarVersiones)
+    }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var exportando by remember { mutableStateOf(false) }
+    val exportarPdfLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { destino ->
+        val documentoActual = documento
+        if (destino != null && documentoActual != null) {
+            coroutineScope.launch {
+                exportando = true
+                try {
+                    withContext(Dispatchers.IO) {
+                        exportarDocumentoPdf(context, documentoActual, destino)
+                    }
+                    Toast.makeText(context, "PDF guardado correctamente.", Toast.LENGTH_SHORT).show()
+                } catch (_: Exception) {
+                    Toast.makeText(context, "No se pudo guardar el PDF.", Toast.LENGTH_LONG).show()
+                } finally {
+                    exportando = false
+                }
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -93,14 +142,14 @@ fun DetalleDocumentoScreen(
                 }
             }
 
-            if (puedeModificar) {
+            if (puedeSolicitarCambio) {
                 OutlinedButton(
                     onClick = onEditar,
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Modificar documento")
+                    Text(etiquetaAccionEdicion)
                 }
             }
 
@@ -117,6 +166,19 @@ fun DetalleDocumentoScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp)
                     )
+                    OutlinedButton(
+                        onClick = {
+                            exportarPdfLauncher.launch("documento_${documento.id}.pdf")
+                        },
+                        enabled = !exportando,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (exportando) "Guardando PDF…" else "Descargar PDF")
+                    }
                 }
             }
 
@@ -154,6 +216,19 @@ fun DetalleDocumentoScreen(
                 }
             }
 
+            val versiones = viewModel.versionesDocumento.filter { it.documentoId == documento.id }
+            if (versiones.isNotEmpty()) {
+                SectionCard(title = "Versiones anteriores") {
+                    versiones.forEach { version ->
+                        val anterior = version.contenido.toDocumento(documento.id)
+                        InfoRow(
+                            "Versión ${version.numeroVersion} · ${version.fechaRegistro}",
+                            "${anterior.clasificacion.nombreCategoria()} · ${anterior.clasificacion.resumen().orEmpty()} · ${anterior.estado}"
+                        )
+                    }
+                }
+            }
+
             if (mostrarHistorial) {
                 SectionCard(title = "Historial del documento") {
                     if (historial.isEmpty()) {
@@ -175,5 +250,58 @@ fun DetalleDocumentoScreen(
                 }
             }
         }
+    }
+}
+
+private fun exportarDocumentoPdf(context: Context, documento: com.example.gestionclinica.model.Documento, destino: Uri) {
+    val pdfOrigen = documento.pdfEscaneado
+    if (!pdfOrigen.isNullOrBlank()) {
+        val entrada = context.contentResolver.openInputStream(Uri.parse(pdfOrigen))
+            ?: error("No se pudo leer el PDF original")
+        val salida = context.contentResolver.openOutputStream(destino, "w")
+            ?: error("No se pudo crear el archivo de destino")
+        entrada.use { input -> salida.use { output -> input.copyTo(output) } }
+        return
+    }
+
+    check(documento.paginasEscaneadas.isNotEmpty()) { "El documento no tiene páginas escaneadas" }
+    val salida = context.contentResolver.openOutputStream(destino, "w")
+        ?: error("No se pudo crear el archivo de destino")
+    val pdf = PdfDocument()
+    try {
+        documento.paginasEscaneadas.forEachIndexed { index, ruta ->
+            val entrada = context.contentResolver.openInputStream(Uri.parse(ruta))
+                ?: error("No se pudo leer una página escaneada")
+            val bitmap = entrada.use { BitmapFactory.decodeStream(it) }
+                ?: error("Una página escaneada no es válida")
+            try {
+                val anchoPagina = 595
+                val altoPagina = 842
+                val pagina = pdf.startPage(
+                    PdfDocument.PageInfo.Builder(anchoPagina, altoPagina, index + 1).create()
+                )
+                pagina.canvas.drawColor(android.graphics.Color.WHITE)
+                val escala = minOf(
+                    anchoPagina.toFloat() / bitmap.width,
+                    altoPagina.toFloat() / bitmap.height
+                )
+                val ancho = bitmap.width * escala
+                val alto = bitmap.height * escala
+                val izquierda = (anchoPagina - ancho) / 2f
+                val arriba = (altoPagina - alto) / 2f
+                pagina.canvas.drawBitmap(
+                    bitmap,
+                    null,
+                    RectF(izquierda, arriba, izquierda + ancho, arriba + alto),
+                    Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+                )
+                pdf.finishPage(pagina)
+            } finally {
+                bitmap.recycle()
+            }
+        }
+        salida.use { pdf.writeTo(it) }
+    } finally {
+        pdf.close()
     }
 }

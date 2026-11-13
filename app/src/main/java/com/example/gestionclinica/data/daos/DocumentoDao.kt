@@ -15,6 +15,9 @@ interface DocumentoDao {
     @Query("SELECT MAX(id) FROM documentos")
     suspend fun maxId(): Int?
 
+    @Query("SELECT * FROM documentos WHERE id = :id LIMIT 1")
+    suspend fun buscarPorId(id: Int): DocumentoEntity?
+
     @Insert
     suspend fun insertar(documento: DocumentoEntity): Long
 

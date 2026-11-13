@@ -38,6 +38,7 @@ import com.example.gestionclinica.ui.components.puedeVerAuditoria
 import com.example.gestionclinica.viewmodel.AuthViewModel
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import com.example.gestionclinica.model.RolUsuario
 
 private data class Acceso(
@@ -56,6 +57,7 @@ fun HomeScreen(
     onVerTrazabilidad: () -> Unit,
     onLogout: () -> Unit,
     onVerPerfil: () -> Unit,
+    onVerSolicitudes: () -> Unit,
     totalDocumentos: Int = 0,
     documentosPendientes: Int = 0,
     esFuncionario: Boolean = false,
@@ -66,6 +68,24 @@ fun HomeScreen(
     val esFuncionarioActual = esFuncionario || rol.esFuncionario()
 
     val accesos = buildList {
+        if (rol in setOf(
+                RolUsuario.FUNCIONARIO,
+                RolUsuario.ADMINISTRATIVO,
+                RolUsuario.JEFATURA,
+                RolUsuario.RECURSOS_HUMANOS
+            )
+        ) {
+            val puedeRevisar = rol == RolUsuario.JEFATURA || rol == RolUsuario.RECURSOS_HUMANOS
+            add(
+                Acceso(
+                    titulo = if (puedeRevisar) "Solicitudes de cambio" else "Mis solicitudes",
+                    descripcion = if (puedeRevisar) "Enviar o revisar cambios" else "Consultar mis cambios",
+                    icono = Icons.AutoMirrored.Filled.Assignment,
+                    onClick = onVerSolicitudes
+                )
+            )
+        }
+
         if (esFuncionarioActual) {
             add(
                 Acceso(

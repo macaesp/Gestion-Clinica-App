@@ -1,5 +1,6 @@
 package com.example.gestionclinica.ui.screens
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.gestionclinica.ui.components.DropdownField
@@ -37,6 +39,7 @@ import com.example.gestionclinica.ui.components.MiniaturasPaginas
 import com.example.gestionclinica.ui.components.ScreenHeader
 import com.example.gestionclinica.ui.components.SectionCard
 import com.example.gestionclinica.ui.components.rememberEscanerDocumento
+import com.example.gestionclinica.model.Documento
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
 
 private val tiposDocumento = listOf("Laboral", "Permiso", "Capacitacion", "General")
@@ -48,12 +51,17 @@ fun RegistroDocumentoScreen(
     viewModel: DocumentoViewModel,
     usuarioId: Int,
     esFuncionario: Boolean = false,
+    edicionDirectaRecursosHumanos: Boolean = false,
     funcionarioId: Int? = null,
+    mensajeSolicitud: String? = null,
+    enviandoSolicitud: Boolean = false,
     onDocumentoGuardado: () -> Unit,
-    onDocumentoModificado: (List<String>) -> Unit = {},
+    onSolicitudCambio: (Documento, List<String>) -> Unit = { _, _ -> },
+    onEdicionDirectaGuardada: (Documento, List<String>, (Boolean) -> Unit) -> Unit = { _, _, completar -> completar(false) },
     onVolver: (() -> Unit)? = null
 ) {
     val enEdicion = viewModel.documentoEnEdicion != null
+    val context = LocalContext.current
     LaunchedEffect(esFuncionario, enEdicion, funcionarioId) {
         if (esFuncionario && !enEdicion && funcionarioId != null &&
             viewModel.funcionarioId != funcionarioId
@@ -65,6 +73,7 @@ fun RegistroDocumentoScreen(
         }
     }
     var errorEscaner by remember { mutableStateOf<String?>(null) }
+    var guardandoDirecto by remember { mutableStateOf(false) }
     val escanear = rememberEscanerDocumento(
         onResultado = { paginas, pdf ->
             errorEscaner = null
@@ -79,8 +88,16 @@ fun RegistroDocumentoScreen(
             .imePadding()
     ) {
         ScreenHeader(
-            title = if (enEdicion) "Modificar documento" else "Registrar documento",
-            subtitle = if (enEdicion) "Actualiza los datos del documento" else "Completa los datos del documento",
+            title = when {
+                !enEdicion -> "Registrar documento"
+                edicionDirectaRecursosHumanos -> "Actualizar documento"
+                else -> "Solicitar modificación"
+            },
+            subtitle = when {
+                !enEdicion -> "Completa los datos del documento"
+                edicionDirectaRecursosHumanos -> "Corrige los datos y confirma que está vigente"
+                else -> "La versión vigente se mantiene hasta la aprobación"
+            },
             onBack = onVolver
         )
 
@@ -125,6 +142,27 @@ fun RegistroDocumentoScreen(
                         onSelect = viewModel::cambiarEstado,
                         error = viewModel.errorEstado
                     )
+                }
+            }
+
+            if (enEdicion && edicionDirectaRecursosHumanos) {
+                Text(
+                    "Al guardar, se cerrará cualquier solicitud pendiente y quedará registrada la versión anterior.",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else if (enEdicion) {
+                SectionCard(title = "Motivo de la solicitud") {
+                    FormField(
+                        value = viewModel.motivoCambio,
+                        onValueChange = viewModel::cambiarMotivoCambio,
+                        label = "¿Qué necesitas corregir o actualizar?",
+                        error = viewModel.errorMotivoCambio
+                    )
+                }
+                if (!edicionDirectaRecursosHumanos) {
+                    mensajeSolicitud?.let {
+                        Text(it, color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
 
@@ -218,19 +256,44 @@ fun RegistroDocumentoScreen(
 
             Button(
                 onClick = {
-                    if (enEdicion) {
-                        val cambios = viewModel.guardarCambios()
-                        if (cambios != null) onDocumentoModificado(cambios)
+                    if (enEdicion && edicionDirectaRecursosHumanos) {
+                        val edicion = viewModel.prepararEdicionDirectaRRHH()
+                        if (edicion != null) {
+                            guardandoDirecto = true
+                            onEdicionDirectaGuardada(edicion.first, edicion.second) { guardado ->
+                                guardandoDirecto = false
+                                Toast.makeText(
+                                    context,
+                                    if (guardado) "Cambios guardados y documento marcado como vigente."
+                                    else "No se pudieron guardar los cambios.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    } else if (enEdicion) {
+                        val solicitud = viewModel.prepararSolicitudCambio()
+                        if (solicitud != null) {
+                            onSolicitudCambio(solicitud.first, solicitud.second)
+                        }
                     } else if (viewModel.guardarDocumento(usuarioId)) {
                         onDocumentoGuardado()
                     }
                 },
                 shape = MaterialTheme.shapes.medium,
+                enabled = !enviandoSolicitud && !guardandoDirecto,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
             ) {
-                Text(if (enEdicion) "Guardar cambios" else "Guardar documento")
+                Text(
+                    when {
+                        (enviandoSolicitud || guardandoDirecto) && edicionDirectaRecursosHumanos -> "Guardando…"
+                        enviandoSolicitud -> "Enviando…"
+                        !enEdicion -> "Guardar documento"
+                        edicionDirectaRecursosHumanos -> "Guardar cambios y marcar vigente"
+                        else -> "Enviar solicitud a revisión"
+                    }
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
         }

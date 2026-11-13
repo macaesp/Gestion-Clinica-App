@@ -16,17 +16,24 @@ import com.example.gestionclinica.model.Documento
 import com.example.gestionclinica.model.EspecificacionDocumento
 import com.example.gestionclinica.model.Funcionario
 import com.example.gestionclinica.model.Usuario
+import com.example.gestionclinica.model.RolUsuario
 import com.example.gestionclinica.repository.DocumentoRepository
-import com.example.gestionclinica.security.PoliticaAcceso
+import com.example.gestionclinica.repository.SolicitudCambioRepository
+import com.example.gestionclinica.data.VersionDocumentoEntity
+import com.example.gestionclinica.security.AccesoporRol
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 class DocumentoViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val versionDao = AppDatabase.getInstance(application).versionDocumentoDao()
+
     private val repository = DocumentoRepository(
         AppDatabase.getInstance(application).documentoDao()
     )
+    private val solicitudCambioRepository =
+        SolicitudCambioRepository(AppDatabase.getInstance(application))
 
     // Último id usado; evita repetir ids si se guardan dos documentos seguidos
     // antes de que la BD notifique el cambio.
@@ -38,6 +45,12 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
     var funcionarioId by mutableStateOf<Int?>(null)
         private set
     var estado by mutableStateOf("")
+        private set
+    var motivoCambio by mutableStateOf("")
+        private set
+    var errorMotivoCambio by mutableStateOf<String?>(null)
+        private set
+    var solicitudAnteriorId by mutableStateOf<Int?>(null)
         private set
 
     // CAMPOS ESPECÍFICOS: Laboral
@@ -84,6 +97,7 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
 
     // Espejo en memoria de la tabla "documentos"; se actualiza solo cuando cambia la BD.
     val documentos = mutableStateListOf<Documento>()
+    val versionesDocumento = mutableStateListOf<VersionDocumentoEntity>()
     var documentoSeleccionado by mutableStateOf<Documento?>(null)
         private set
     var documentoEnEdicion by mutableStateOf<Documento?>(null)
@@ -101,7 +115,7 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
         usuarioAutorizado = usuario
         funcionariosPorId = funcionarios.associateBy { it.id }
         val seleccionado = documentoSeleccionado
-        if (seleccionado != null && !PoliticaAcceso.puedeVerDocumento(
+        if (seleccionado != null && !AccesoporRol.puedeVerDocumento(
                 usuario,
                 seleccionado,
                 funcionariosPorId[seleccionado.funcionarioId]
@@ -127,6 +141,7 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
     fun cambiarTipo(valor: String) { tipo = valor; errorTipo = null }
     fun cambiarFuncionario(id: Int?) { funcionarioId = id; errorFuncionario = null }
     fun cambiarEstado(valor: String) { estado = valor; errorEstado = null }
+    fun cambiarMotivoCambio(valor: String) { motivoCambio = valor; errorMotivoCambio = null }
 
     // MÉTODOS DE CAMBIO ESPECÍFICOS
     fun cambiarSubtipoLaboral(valor: String) { subtipoLaboral = valor }
@@ -152,7 +167,7 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun seleccionarDocumento(documento: Documento) {
-        if (!PoliticaAcceso.puedeVerDocumento(
+        if (!AccesoporRol.puedeVerDocumento(
                 usuarioAutorizado,
                 documento,
                 funcionariosPorId[documento.funcionarioId]
@@ -164,7 +179,7 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun obtenerDocumentosPorFuncionario(idFuncionario: Int): List<Documento> =
         documentos.filter {
-            it.funcionarioId == idFuncionario && PoliticaAcceso.puedeVerDocumento(
+            it.funcionarioId == idFuncionario && AccesoporRol.puedeVerDocumento(
                 usuarioAutorizado,
                 it,
                 funcionariosPorId[it.funcionarioId]
@@ -174,12 +189,20 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
     fun documentosVisibles(funcionarioIdPermitido: Int?): List<Documento> =
         documentos.filter { documento ->
             (funcionarioIdPermitido == null || documento.funcionarioId == funcionarioIdPermitido) &&
-                PoliticaAcceso.puedeVerDocumento(
+                AccesoporRol.puedeVerDocumento(
                     usuarioAutorizado,
                     documento,
                     funcionariosPorId[documento.funcionarioId]
                 )
         }
+
+    fun cargarVersiones(documentoId: Int) {
+        viewModelScope.launch {
+            val versiones = versionDao.listarPorDocumento(documentoId)
+            versionesDocumento.clear()
+            versionesDocumento.addAll(versiones)
+        }
+    }
 
     fun prepararRegistroParaFuncionario(idFuncionario: Int) {
         limpiarFormulario()
@@ -188,6 +211,7 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun limpiarFormulario() {
         tipo = ""; funcionarioId = null; estado = ""
+        motivoCambio = ""; errorMotivoCambio = null; solicitudAnteriorId = null
         subtipoLaboral = ""
         tipoSolicitud = ""; respaldo = ""; fechaInicio = ""; fechaFin = ""; estadoAprobacion = ""
         nombreCurso = ""; certificadoRespaldo = ""; cantidadHoras = ""; estadoValidacion = ""
@@ -240,13 +264,18 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
         return true
     }
 
-    fun prepararEdicion(documento: Documento) {
+    fun prepararEdicion(
+        documento: Documento,
+        valoresIniciales: Documento = documento,
+        solicitudAnteriorId: Int? = null
+    ) {
         limpiarFormulario()
         documentoEnEdicion = documento
-        funcionarioId = documento.funcionarioId
-        estado = documento.estado
+        this.solicitudAnteriorId = solicitudAnteriorId
+        funcionarioId = valoresIniciales.funcionarioId
+        estado = valoresIniciales.estado
 
-        when (val c = documento.clasificacion) {
+        when (val c = valoresIniciales.clasificacion) {
             is EspecificacionDocumento.Laboral -> {
                 tipo = "Laboral"
                 subtipoLaboral = c.subtipo
@@ -268,16 +297,78 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
             }
             is EspecificacionDocumento.General -> tipo = "General"
         }
-        establecerEscaneo(documento.paginasEscaneadas, documento.pdfEscaneado)
+        establecerEscaneo(valoresIniciales.paginasEscaneadas, valoresIniciales.pdfEscaneado)
     }
 
-    fun guardarCambios(): List<String>? {
+    fun prepararSolicitudCambio(): Pair<Documento, List<String>>? {
         val original = documentoEnEdicion ?: return null
         if (estado.isBlank()) {
             errorEstado = "Requerido"
             return null
         }
+        if (motivoCambio.isBlank()) {
+            errorMotivoCambio = "Indica el motivo de la solicitud."
+            return null
+        }
 
+        val actualizado = crearPropuesta(original)
+        val cambios = cambiosEntre(original, actualizado)
+        if (cambios.isEmpty()) {
+            errorMotivoCambio = "Modifica al menos un dato antes de enviar la solicitud."
+            return null
+        }
+        return actualizado to cambios
+    }
+
+    fun prepararEdicionDirectaRRHH(): Pair<Documento, List<String>>? {
+        val original = documentoEnEdicion ?: return null
+        if (estado != "Vigente") {
+            errorEstado = "Confirma el estado Vigente para guardar la edición directa."
+            return null
+        }
+        val actualizado = crearPropuesta(original)
+        val cambios = cambiosEntre(original, actualizado)
+        if (cambios.isEmpty()) {
+            errorEstado = "Modifica algún dato antes de guardar."
+            return null
+        }
+        return actualizado to cambios
+    }
+
+    fun guardarEdicionDirectaRRHH(
+        usuario: Usuario,
+        propuesta: Documento,
+        camposAfectados: List<String>,
+        alCompletar: (Boolean) -> Unit
+    ) {
+        val original = documentoEnEdicion
+        if (usuario.rol != RolUsuario.RECURSOS_HUMANOS || original == null ||
+            original.id != propuesta.id || propuesta.estado != "Vigente"
+        ) {
+            alCompletar(false)
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                solicitudCambioRepository.actualizarDirectamentePorRecursosHumanos(
+                    documentoId = original.id,
+                    usuarioId = usuario.id,
+                    propuesta = propuesta,
+                    camposAfectados = camposAfectados
+                )
+            }.onSuccess { guardado ->
+                if (guardado) {
+                    documentoSeleccionado = propuesta
+                    documentoEnEdicion = null
+                }
+                alCompletar(guardado)
+            }.onFailure {
+                alCompletar(false)
+            }
+        }
+    }
+
+    private fun crearPropuesta(original: Documento): Documento {
         val especificacion = when (tipo) {
             "Laboral" -> EspecificacionDocumento.Laboral(subtipoLaboral)
             "Permiso" -> EspecificacionDocumento.Permiso(
@@ -289,19 +380,12 @@ class DocumentoViewModel(application: Application) : AndroidViewModel(applicatio
             )
             else -> EspecificacionDocumento.General
         }
-
-        val actualizado = original.copy(
+        return original.copy(
             estado = estado,
             clasificacion = especificacion,
             paginasEscaneadas = paginasEscaneadas.toList(),
             pdfEscaneado = pdfEscaneado
         )
-        val cambios = cambiosEntre(original, actualizado)
-        if (cambios.isNotEmpty()) {
-            viewModelScope.launch { repository.actualizar(actualizado.toEntity()) }
-        }
-        documentoSeleccionado = actualizado
-        return cambios
     }
 
     private fun cambiosEntre(antes: Documento, despues: Documento): List<String> = buildList {

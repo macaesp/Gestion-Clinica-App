@@ -11,7 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.gestionclinica.data.AppDatabase
 import com.example.gestionclinica.model.Funcionario
 import com.example.gestionclinica.model.Usuario
-import com.example.gestionclinica.security.PoliticaAcceso
+import com.example.gestionclinica.security.AccesoporRol
 import kotlinx.coroutines.launch
 
 class FuncionarioViewModel(application: Application) : AndroidViewModel(application) {
@@ -47,11 +47,11 @@ class FuncionarioViewModel(application: Application) : AndroidViewModel(applicat
         get() {
             if (busqueda.isBlank()) {
                 return funcionarios.filter {
-                    PoliticaAcceso.puedeVerExpediente(usuarioAutorizado, it)
+                    AccesoporRol.puedeVerExpediente(usuarioAutorizado, it)
                 }
             }
             return funcionarios.filter { funcionario ->
-                PoliticaAcceso.puedeVerExpediente(usuarioAutorizado, funcionario) &&
+                AccesoporRol.puedeVerExpediente(usuarioAutorizado, funcionario) &&
                         (funcionario.nombre.contains(busqueda, ignoreCase = true) ||
                         funcionario.rut.contains(busqueda, ignoreCase = true) ||
                         funcionario.cargo.contains(busqueda, ignoreCase = true))
@@ -61,7 +61,7 @@ class FuncionarioViewModel(application: Application) : AndroidViewModel(applicat
     fun establecerUsuarioAutorizado(usuario: Usuario?) {
         usuarioAutorizado = usuario
         if (funcionarioSeleccionado?.let {
-                !PoliticaAcceso.puedeVerExpediente(usuario, it)
+                !AccesoporRol.puedeVerExpediente(usuario, it)
             } == true
         ) {
             funcionarioSeleccionado = null
@@ -73,7 +73,7 @@ class FuncionarioViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun seleccionarFuncionario(funcionario: Funcionario) {
-        if (PoliticaAcceso.puedeVerExpediente(usuarioAutorizado, funcionario)) {
+        if (AccesoporRol.puedeVerExpediente(usuarioAutorizado, funcionario)) {
             funcionarioSeleccionado = funcionario
         }
     }

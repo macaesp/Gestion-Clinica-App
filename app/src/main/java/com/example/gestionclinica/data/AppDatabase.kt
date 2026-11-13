@@ -14,15 +14,21 @@ import com.example.gestionclinica.data.daos.DocumentoDao
 import com.example.gestionclinica.data.daos.FuncionarioDao
 import com.example.gestionclinica.data.daos.TrazabilidadDao
 import com.example.gestionclinica.data.daos.UsuarioDao
+import com.example.gestionclinica.data.daos.SolicitudCambioDao
+import com.example.gestionclinica.data.daos.VersionDocumentoDao
+import com.example.gestionclinica.data.SolicitudCambioEntity
+import com.example.gestionclinica.data.VersionDocumentoEntity
 
 @Database(
     entities = [
         Funcionario::class,
         DocumentoEntity::class,
         RegistroTrazabilidad::class,
-        UsuarioEntity::class
+        UsuarioEntity::class,
+        SolicitudCambioEntity::class,
+        VersionDocumentoEntity::class
     ],
-    version = 4,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -32,6 +38,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun documentoDao(): DocumentoDao
     abstract fun trazabilidadDao(): TrazabilidadDao
     abstract fun usuarioDao(): UsuarioDao
+    abstract fun solicitudCambioDao(): SolicitudCambioDao
+    abstract fun versionDocumentoDao(): VersionDocumentoDao
     companion object {
         @Volatile
         private var instancia: AppDatabase? = null
@@ -48,7 +56,9 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_2_3,
                         MIGRATION_3_4,
                         MIGRATION_4_5,
-                        MIGRATION_5_4
+                        MIGRATION_5_4,
+                        MIGRATION_5_6,
+                        MIGRATION_6_7
                     )
                     .addCallback(datosIniciales)
                     .build()
@@ -92,7 +102,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         // v4 -> v5 fue una prueba de RF12. Conserva el esquema actual de RF12,
         // permitiendo que instalaciones con esa versión se actualicen sin perder datos.
-        private val MIGRATION_4_5 = object : Migration(4, 5) {
+        internal val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) = Unit
         }
 
@@ -101,6 +111,131 @@ abstract class AppDatabase : RoomDatabase() {
         private val MIGRATION_5_4 = object : Migration(5, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP TABLE IF EXISTS solicitudes_cambio_documento")
+            }
+        }
+
+        internal val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS solicitudes_cambio_documento (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        documentoId INTEGER NOT NULL,
+                        solicitanteId INTEGER NOT NULL,
+                        fechaSolicitud TEXT NOT NULL,
+                        estado TEXT NOT NULL,
+                        motivo TEXT NOT NULL,
+                        camposAfectados TEXT NOT NULL,
+                        observacionRevision TEXT,
+                        revisorId INTEGER,
+                        fechaRevision TEXT,
+                        solicitudAnteriorId INTEGER,
+                        propuesta_funcionarioId INTEGER NOT NULL,
+                        propuesta_usuarioCargaId INTEGER NOT NULL,
+                        propuesta_fechaCarga TEXT NOT NULL,
+                        propuesta_estado TEXT NOT NULL,
+                        propuesta_tipo TEXT NOT NULL,
+                        propuesta_subtipoLaboral TEXT,
+                        propuesta_tipoSolicitud TEXT,
+                        propuesta_respaldo TEXT,
+                        propuesta_fechaInicio TEXT,
+                        propuesta_fechaFin TEXT,
+                        propuesta_estadoAprobacion TEXT,
+                        propuesta_nombreCurso TEXT,
+                        propuesta_certificadoRespaldo TEXT,
+                        propuesta_cantidadHoras INTEGER,
+                        propuesta_estadoValidacion TEXT,
+                        propuesta_paginasEscaneadas TEXT NOT NULL,
+                        propuesta_pdfEscaneado TEXT
+                    )""".trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_solicitudes_cambio_documento_documentoId ON solicitudes_cambio_documento (documentoId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_solicitudes_cambio_documento_solicitanteId ON solicitudes_cambio_documento (solicitanteId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_solicitudes_cambio_documento_estado ON solicitudes_cambio_documento (estado)")
+
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS versiones_documento (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        documentoId INTEGER NOT NULL,
+                        numeroVersion INTEGER NOT NULL,
+                        fechaRegistro TEXT NOT NULL,
+                        usuarioCambioId INTEGER NOT NULL,
+                        solicitudId INTEGER NOT NULL,
+                        contenido_funcionarioId INTEGER NOT NULL,
+                        contenido_usuarioCargaId INTEGER NOT NULL,
+                        contenido_fechaCarga TEXT NOT NULL,
+                        contenido_estado TEXT NOT NULL,
+                        contenido_tipo TEXT NOT NULL,
+                        contenido_subtipoLaboral TEXT,
+                        contenido_tipoSolicitud TEXT,
+                        contenido_respaldo TEXT,
+                        contenido_fechaInicio TEXT,
+                        contenido_fechaFin TEXT,
+                        contenido_estadoAprobacion TEXT,
+                        contenido_nombreCurso TEXT,
+                        contenido_certificadoRespaldo TEXT,
+                        contenido_cantidadHoras INTEGER,
+                        contenido_estadoValidacion TEXT,
+                        contenido_paginasEscaneadas TEXT NOT NULL,
+                        contenido_pdfEscaneado TEXT
+                    )""".trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_versiones_documento_documentoId_numeroVersion ON versiones_documento (documentoId, numeroVersion)")
+            }
+        }
+
+        // v6 -> v7: permite registrar versiones originadas por una edición directa de RR. HH.
+        internal val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE versiones_documento_nueva (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        documentoId INTEGER NOT NULL,
+                        numeroVersion INTEGER NOT NULL,
+                        fechaRegistro TEXT NOT NULL,
+                        usuarioCambioId INTEGER NOT NULL,
+                        solicitudId INTEGER,
+                        contenido_funcionarioId INTEGER NOT NULL,
+                        contenido_usuarioCargaId INTEGER NOT NULL,
+                        contenido_fechaCarga TEXT NOT NULL,
+                        contenido_estado TEXT NOT NULL,
+                        contenido_tipo TEXT NOT NULL,
+                        contenido_subtipoLaboral TEXT,
+                        contenido_tipoSolicitud TEXT,
+                        contenido_respaldo TEXT,
+                        contenido_fechaInicio TEXT,
+                        contenido_fechaFin TEXT,
+                        contenido_estadoAprobacion TEXT,
+                        contenido_nombreCurso TEXT,
+                        contenido_certificadoRespaldo TEXT,
+                        contenido_cantidadHoras INTEGER,
+                        contenido_estadoValidacion TEXT,
+                        contenido_paginasEscaneadas TEXT NOT NULL,
+                        contenido_pdfEscaneado TEXT
+                    )""".trimIndent()
+                )
+                db.execSQL(
+                    """INSERT INTO versiones_documento_nueva (
+                        id, documentoId, numeroVersion, fechaRegistro, usuarioCambioId, solicitudId,
+                        contenido_funcionarioId, contenido_usuarioCargaId, contenido_fechaCarga,
+                        contenido_estado, contenido_tipo, contenido_subtipoLaboral, contenido_tipoSolicitud,
+                        contenido_respaldo, contenido_fechaInicio, contenido_fechaFin, contenido_estadoAprobacion,
+                        contenido_nombreCurso, contenido_certificadoRespaldo, contenido_cantidadHoras,
+                        contenido_estadoValidacion, contenido_paginasEscaneadas, contenido_pdfEscaneado
+                    ) SELECT
+                        id, documentoId, numeroVersion, fechaRegistro, usuarioCambioId, solicitudId,
+                        contenido_funcionarioId, contenido_usuarioCargaId, contenido_fechaCarga,
+                        contenido_estado, contenido_tipo, contenido_subtipoLaboral, contenido_tipoSolicitud,
+                        contenido_respaldo, contenido_fechaInicio, contenido_fechaFin, contenido_estadoAprobacion,
+                        contenido_nombreCurso, contenido_certificadoRespaldo, contenido_cantidadHoras,
+                        contenido_estadoValidacion, contenido_paginasEscaneadas, contenido_pdfEscaneado
+                    FROM versiones_documento""".trimIndent()
+                )
+                db.execSQL("DROP TABLE versiones_documento")
+                db.execSQL("ALTER TABLE versiones_documento_nueva RENAME TO versiones_documento")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX index_versiones_documento_documentoId_numeroVersion " +
+                        "ON versiones_documento (documentoId, numeroVersion)"
+                )
             }
         }
 
@@ -141,8 +276,8 @@ abstract class AppDatabase : RoomDatabase() {
         // cuentas para entrar a la app
         private val usuariosDemo = listOf(
             Triple("Macarena Espinoza S", "12345678-5", RolUsuario.ADMINISTRADOR_SISTEMA),
-            Triple("Benjamin Gonzales", "12425879-1", RolUsuario.RECURSOS_HUMANOS),
-            Triple("Franchesco Ejistre", "126543167-2", RolUsuario.FUNCIONARIO)
+            Triple("Benjamin Gonzales", "22222222-2", RolUsuario.RECURSOS_HUMANOS),
+            Triple("Franchesco Ejistre", "11111111-1", RolUsuario.FUNCIONARIO)
         )
 
         private fun sembrarUsuarios(db: SupportSQLiteDatabase) {

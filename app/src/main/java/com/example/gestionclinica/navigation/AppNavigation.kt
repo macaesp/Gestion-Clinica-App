@@ -26,15 +26,16 @@ import androidx.navigation.compose.rememberNavController
 import com.example.gestionclinica.ui.components.esFuncionario
 import com.example.gestionclinica.ui.components.puedeGestionarFuncionarios
 import com.example.gestionclinica.ui.components.puedeRegistrarDocumentos
-import com.example.gestionclinica.ui.components.puedeModificarDocumentos
 import com.example.gestionclinica.ui.components.puedeVerAuditoria
 import com.example.gestionclinica.ui.screens.*
 import com.example.gestionclinica.viewmodel.AuthViewModel
 import com.example.gestionclinica.viewmodel.DocumentoViewModel
 import com.example.gestionclinica.viewmodel.FuncionarioViewModel
 import com.example.gestionclinica.viewmodel.TrazabilidadViewModel
+import com.example.gestionclinica.viewmodel.SolicitudCambioViewModel
 import com.example.gestionclinica.model.RolUsuario
-import com.example.gestionclinica.security.PoliticaAcceso
+import com.example.gestionclinica.security.AccesoporRol
+import com.example.gestionclinica.security.SolicitudesCambios
 
 private data class DestinoInferior(
     val ruta: String,
@@ -48,6 +49,7 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
     val funcionarioViewModel: FuncionarioViewModel = viewModel()
     val authViewModel: AuthViewModel = viewModel()
     val trazabilidadViewModel: TrazabilidadViewModel = viewModel()
+    val solicitudCambioViewModel: SolicitudCambioViewModel = viewModel()
 
     val rol = authViewModel.usuarioActual?.rol
     val esFuncionario = rol.esFuncionario()
@@ -63,7 +65,7 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
     }
 
     val puedeVerDocumento: (com.example.gestionclinica.model.Documento) -> Boolean = { documento ->
-        PoliticaAcceso.puedeVerDocumento(
+        AccesoporRol.puedeVerDocumento(
             usuarioAutenticado,
             documento,
             todosLosFuncionarios.firstOrNull { it.id == documento.funcionarioId }
@@ -178,6 +180,7 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
                         }
                     },
                     onVerPerfil = { navController.navigate("perfil") },
+                    onVerSolicitudes = { navController.navigate("solicitudesCambio") },
                     totalDocumentos =
                         viewModel.documentosVisibles(funcionarioIdPermitido).size,
                     documentosPendientes =
@@ -211,6 +214,37 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
                 } else {
                     navController.navigate("home") {
                         popUpTo("home") { inclusive = false }
+                    }
+                }
+            }
+
+            composable("solicitudesCambio") {
+                val usuario = usuarioAutenticado
+                if (usuario != null) {
+                    SolicitudesCambioScreen(
+                        usuario = usuario,
+                        viewModel = solicitudCambioViewModel,
+                        documentos = viewModel.documentos,
+                        funcionarios = todosLosFuncionarios,
+                        onVolver = { navController.popBackStack() },
+                        onCorregir = { solicitud ->
+                            val original = viewModel.documentos.firstOrNull {
+                                it.id == solicitud.documentoId
+                            }
+                            if (original != null) {
+                                viewModel.prepararEdicion(
+                                    documento = original,
+                                    valoresIniciales = solicitudCambioViewModel
+                                        .propuestaComoDocumento(solicitud),
+                                    solicitudAnteriorId = solicitud.id
+                                )
+                                navController.navigate("registro")
+                            }
+                        }
+                    )
+                } else {
+                    navController.navigate("login") {
+                        popUpTo("home") { inclusive = true }
                     }
                 }
             }
@@ -253,7 +287,7 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
                 val funcionarioActual = funcionarioViewModel.funcionarioSeleccionado
                 if (
                     funcionarioActual != null &&
-                    PoliticaAcceso.puedeVerExpediente(usuarioAutenticado, funcionarioActual)
+                    AccesoporRol.puedeVerExpediente(usuarioAutenticado, funcionarioActual)
                 ) {
                     ExpedienteScreen(
                         viewModel = funcionarioViewModel,
@@ -293,12 +327,26 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
             }
 
             composable("registro") {
-                if (rol.puedeRegistrarDocumentos()) {
+                val documentoEnEdicion = viewModel.documentoEnEdicion
+                val puedeSolicitarEdicion = documentoEnEdicion != null &&
+                    SolicitudesCambios.puedeSolicitar(
+                        usuarioAutenticado,
+                        documentoEnEdicion,
+                        documentoEnEdicion,
+                        todosLosFuncionarios.firstOrNull {
+                            it.id == documentoEnEdicion.funcionarioId
+                        }
+                    )
+                if (rol.puedeRegistrarDocumentos() || puedeSolicitarEdicion) {
                     RegistroDocumentoScreen(
                         viewModel = viewModel,
                         usuarioId = authViewModel.usuarioActual?.id ?: 0,
                         esFuncionario = esFuncionario,
+                        edicionDirectaRecursosHumanos =
+                            documentoEnEdicion != null && rol == RolUsuario.RECURSOS_HUMANOS,
                         funcionarioId = funcionarioIdPermitido,
+                        mensajeSolicitud = solicitudCambioViewModel.mensaje,
+                        enviandoSolicitud = solicitudCambioViewModel.procesando,
                         onDocumentoGuardado = {
                             val idUsuario =
                                 authViewModel.usuarioActual?.id ?: 0
@@ -318,17 +366,36 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
                                 popUpTo("registro") { inclusive = true }
                             }
                         },
-                        onDocumentoModificado = { cambios ->
-                            val editado = viewModel.documentoSeleccionado
-                            if (editado != null && cambios.isNotEmpty()) {
-                                trazabilidadViewModel.registrarAccion(
-                                    documentoId = editado.id,
-                                    usuarioId = authViewModel.usuarioActual?.id ?: 0,
-                                    accion = "MODIFICACIÓN",
-                                    detalles = "Se modificó: ${cambios.joinToString(", ")}"
+                        onSolicitudCambio = { propuesta, cambios ->
+                            val usuario = usuarioAutenticado
+                            val original = viewModel.documentoEnEdicion
+                            if (usuario != null && original != null) {
+                                solicitudCambioViewModel.enviar(
+                                    usuario = usuario,
+                                    original = original,
+                                    propuesta = propuesta,
+                                    motivo = viewModel.motivoCambio,
+                                    camposAfectados = cambios,
+                                    funcionarios = todosLosFuncionarios,
+                                    solicitudAnteriorId = viewModel.solicitudAnteriorId,
+                                    alCompletar = { navController.popBackStack() }
                                 )
                             }
-                            navController.popBackStack()
+                        },
+                        onEdicionDirectaGuardada = { propuesta, cambios, completar ->
+                            val usuario = usuarioAutenticado
+                            if (usuario == null || usuario.rol != RolUsuario.RECURSOS_HUMANOS) {
+                                completar(false)
+                            } else {
+                                viewModel.guardarEdicionDirectaRRHH(
+                                    usuario,
+                                    propuesta,
+                                    cambios
+                                ) { guardado ->
+                                    completar(guardado)
+                                    if (guardado) navController.popBackStack()
+                                }
+                            }
                         },
                         onVolver = { navController.popBackStack() }
                     )
@@ -363,8 +430,16 @@ fun AppNavigation(viewModel: DocumentoViewModel) {
                             .filter { it.documentoId == docActual.id }
                             .reversed(),
                         nombreUsuario = trazabilidadViewModel::nombreUsuario,
-                        mostrarHistorial = !esFuncionario,
-                        puedeModificar = rol.puedeModificarDocumentos(),
+                        mostrarHistorial = true,
+                        puedeSolicitarCambio = SolicitudesCambios.puedeSolicitar(
+                            usuarioAutenticado,
+                            docActual,
+                            docActual,
+                            todosLosFuncionarios.firstOrNull { it.id == docActual.funcionarioId }
+                        ),
+                        etiquetaAccionEdicion =
+                            if (rol == RolUsuario.RECURSOS_HUMANOS) "Modificar documento"
+                            else "Solicitar modificación",
                         onEditar = {
                             viewModel.prepararEdicion(docActual)
                             navController.navigate("registro")
