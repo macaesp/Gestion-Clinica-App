@@ -28,7 +28,7 @@ import com.example.gestionclinica.data.VersionDocumentoEntity
         SolicitudCambioEntity::class,
         VersionDocumentoEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -58,7 +58,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_4_5,
                         MIGRATION_5_4,
                         MIGRATION_5_6,
-                        MIGRATION_6_7
+                        MIGRATION_6_7,
+                        MIGRATION_7_8
                     )
                     .addCallback(datosIniciales)
                     .build()
@@ -239,6 +240,40 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v7 -> v8: agrega las cuentas demo que no existían al crear instalaciones previas.
+        internal val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                usuariosEjem.forEach { (nombre, rut, rol) ->
+                    val credenciales = db.query(
+                        "SELECT salt, passwordHash FROM usuarios WHERE rut = ? LIMIT 1",
+                        arrayOf(rut)
+                    ).use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            cursor.getString(0) to cursor.getString(1)
+                        } else {
+                            null
+                        }
+                    }
+
+                    if (credenciales == null) {
+                        insertarUsuarioDemo(db, nombre, rut, rol, CONTRASEÑA_DEMO)
+                    } else if (PasswordHasher.verificar(
+                            CONTRASEÑA_DEMO_ANTERIOR,
+                            credenciales.first,
+                            credenciales.second
+                        )
+                    ) {
+                        // Actualiza solo las cuentas que aún conservan la contraseña demo antigua.
+                        val hashNuevo = PasswordHasher.hash(CONTRASEÑA_DEMO, credenciales.first)
+                        db.execSQL(
+                            "UPDATE usuarios SET passwordHash = ? WHERE rut = ?",
+                            arrayOf<Any>(hashNuevo, rut)
+                        )
+                    }
+                }
+            }
+        }
+
         // Datos de prueba
         private val datosIniciales = object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
@@ -271,25 +306,37 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         // Contraseña de las cuentas ejemplo
-        private const val PASSWORD_DEMO = "Demo2026!"
+        private const val CONTRASEÑA_DEMO = "Demo2026!"
+        private const val CONTRASEÑA_DEMO_ANTERIOR = "Duoc2026!"
 
         // cuentas para entrar a la app
-        private val usuariosDemo = listOf(
+        private val usuariosEjem = listOf(
             Triple("Macarena Espinoza S", "12345678-5", RolUsuario.ADMINISTRADOR_SISTEMA),
             Triple("Benjamin Gonzales", "22222222-2", RolUsuario.RECURSOS_HUMANOS),
-            Triple("Franchesco Ejistre", "11111111-1", RolUsuario.FUNCIONARIO)
+            Triple("Franchesco Ejistre", "11111111-1", RolUsuario.FUNCIONARIO),
+            Triple("Alexandra Smith","33333333-3", RolUsuario.JEFATURA)
         )
 
         private fun sembrarUsuarios(db: SupportSQLiteDatabase) {
-            usuariosDemo.forEach { (nombre, rut, rol) ->
-                val sal = PasswordHasher.nuevaSal()
-                val hash = PasswordHasher.hash(PASSWORD_DEMO, sal)
-                db.execSQL(
-                    "INSERT OR IGNORE INTO usuarios (nombre, rut, rol, activo, passwordHash, salt) " +
-                            "VALUES (?, ?, ?, 1, ?, ?)",
-                    arrayOf<Any>(nombre, rut, rol.name, hash, sal)
-                )
+            usuariosEjem.forEach { (nombre, rut, rol) ->
+                insertarUsuarioDemo(db, nombre, rut, rol, CONTRASEÑA_DEMO)
             }
+        }
+
+        private fun insertarUsuarioDemo(
+            db: SupportSQLiteDatabase,
+            nombre: String,
+            rut: String,
+            rol: RolUsuario,
+            contraseña: String
+        ) {
+            val sal = PasswordHasher.nuevaSal()
+            val hash = PasswordHasher.hash(contraseña, sal)
+            db.execSQL(
+                "INSERT OR IGNORE INTO usuarios (nombre, rut, rol, activo, passwordHash, salt) " +
+                        "VALUES (?, ?, ?, 1, ?, ?)",
+                arrayOf<Any>(nombre, rut, rol.name, hash, sal)
+            )
         }
     }
 }

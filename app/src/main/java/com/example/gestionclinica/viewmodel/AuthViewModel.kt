@@ -114,8 +114,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val esAdmin = usuario.rol in setOf(
                     RolUsuario.ADMINISTRADOR_SISTEMA,
                     RolUsuario.RECURSOS_HUMANOS,
-                    RolUsuario.JEFATURA,
-                    RolUsuario.TI_CIBERSEGURIDAD
+                    RolUsuario.JEFATURA
                 )
 
                 val accesoCorrecto = when (tipoAcceso) {
